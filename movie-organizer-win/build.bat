@@ -2,6 +2,7 @@ mkdir src
 mkdir src\dist
 mkdir src\dist\res
 copy /Y ..\res\*.* src\dist\res
+copy ..\license.txt src\dist\
 copy /Y ..\movie-organizer\*.py src\
 copy /Y setup.py src\
 copy /Y dlls\msvcp90.dll src\

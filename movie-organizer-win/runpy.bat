@@ -1,2 +1,2 @@
-C:\Python27\python.exe ..\movie-organizer
+C:\Python27\python.exe ..\movie-organizer -l ..\library
 Pause

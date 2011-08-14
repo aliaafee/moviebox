@@ -66,7 +66,7 @@ class MainFrame(wx.Frame):
 				return True
 				
 			else:
-				print "Library path is not valid"
+				print "Library path is invalid"
 				return False
 				
 		except OSError, e:

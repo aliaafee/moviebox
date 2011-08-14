@@ -1,3 +1,25 @@
+"""
+	portable-movie-organizer
+	------------------------
+	
+	Copyright (C) 2010 Ali Aafee
+	
+	This file is part of portable-movie-organizer.
+
+	portable-movie-organizer is free software: you can redistribute it 
+	and/or modify it under the terms of the GNU General Public License 
+	as published by the Free Software Foundation, either version 3 of 
+	the License, or (at your option) any later version.
+
+	Foobar is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 import wx
 import wx.grid
 import wx.html
@@ -14,6 +36,8 @@ import LibraryScanner
 dirName = os.path.dirname(os.path.abspath(__file__))
 dirName, fileName = os.path.split(dirName)
 resDir = os.path.join(dirName, 'res')
+licensePath = os.path.join(dirName, 'license.txt')
+
 
 def create(parent, library, player=''):
     return MainFrame(parent, library, player)
@@ -152,10 +176,27 @@ class MainFrame(wx.Frame):
 		
 		menu.AppendSeparator()
 		
-		m_exit = menu.Append(wx.ID_EXIT, "E&xit\tAlt-X", "Exit Movie Organizer")
-		self.Bind(wx.EVT_MENU, self.OnClose, m_exit)
+		m_exit = wx.NewId()
+		menu.Append(
+			kind=wx.ID_EXIT, 
+			text="E&xit\tAlt-X", 
+			help="Exit Movie Organizer",
+			id=m_exit)
+		self.Bind(wx.EVT_MENU, self.OnClose, id=m_exit)
 		
 		menuBar.Append(menu, "&File")
+		
+		menu = wx.Menu()
+		
+		m_about = wx.NewId()
+		menu.Append(
+			kind=wx.ITEM_NORMAL, 
+			text="About", 
+			help="About movie organizer",
+			id=m_about)
+		self.Bind(wx.EVT_MENU, self.OnAbout, id=m_about)
+		
+		menuBar.Append(menu, "&Help")
 		
 		self.SetMenuBar(menuBar)
 		
@@ -711,3 +752,18 @@ class MainFrame(wx.Frame):
 					self._populate_filter()
 					#self._populate_movielist()
 					self._display_details()
+					
+					
+	def OnAbout(self, event):
+		f = open(licensePath)
+		license = unicode(f.read())
+		f.close()
+		
+		aboutInfo = wx.AboutDialogInfo()
+		aboutInfo.SetName("Portable Movie Organizer")
+		aboutInfo.SetCopyright("Copyright (C) 2011 Ali Aafee")
+		aboutInfo.SetDescription("Manage your movie library directly from your portable drive")
+		aboutInfo.AddDeveloper("Ali Aafee")
+		aboutInfo.SetLicense(license)
+		wx.AboutBox(aboutInfo)
+		print "About"

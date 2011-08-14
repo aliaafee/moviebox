@@ -1,3 +1,25 @@
+"""
+	portable-movie-organizer
+	------------------------
+	
+	Copyright (C) 2010 Ali Aafee
+	
+	This file is part of portable-movie-organizer.
+
+	portable-movie-organizer is free software: you can redistribute it 
+	and/or modify it under the terms of the GNU General Public License 
+	as published by the Free Software Foundation, either version 3 of 
+	the License, or (at your option) any later version.
+
+	Foobar is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 import wx
 
 import MainFrame
@@ -19,15 +41,20 @@ class MovieOrganizer(wx.App):
 		
 		
 def usage():
-	print "Movie Organizer"
-	print "==============="
+	print "Portable Movie Organizer"
+	print "------------------------"
+	print "Copyright (C) 2010 Ali Aafee"
+	print "This program comes with ABSOLUTELY NO WARRANTY"
+	print "This is free software, and you are welcome to redistribute it"
+	print "under certain conditions. See license.txt for details"
+	print " "
 	print "Usage:"
 	print "    -h, --help"
-	print "         Displays this help"
+	print "       Displays this help"
 	print " "
 	print "    -l, --library"
-	print "         Set the location of the library"
-	print "         This option is required"
+	print "       Set the location of the library"
+	print "       If not given a dialog will appear requseting it"
 	print " "
 	print "    -p, --player"
 	print "         The player to use (optional)"

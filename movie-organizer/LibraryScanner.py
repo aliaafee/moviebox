@@ -311,8 +311,6 @@ class LibraryScanner(wx.Dialog):
 		
 	
 	def OnAddAll(self, event):
-		batch = BatchMetaDataGetter(self)
-		batch.start()
 		
 		if self.fileList.GetItemCount() == 0:
 			return

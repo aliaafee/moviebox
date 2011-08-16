@@ -33,6 +33,8 @@ class DbInterface:
 			self._create_tables()
 			
 			self.connected = True
+			
+			self._dbfile = dbfile
 		except sqlite3.OperationalError, e:
 			self.connected = False
 			
@@ -41,6 +43,10 @@ class DbInterface:
 		
 	def isConnected(self):
 		return self.connected
+		
+		
+	def close(self):
+		self.conn.close()
 		
 		
 	def _create_tables(self):

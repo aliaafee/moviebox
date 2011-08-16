@@ -28,6 +28,7 @@ import DbInterface
 import MovieDataEditor
 import ImdbAPI
 import time
+import thread
 
 
 class LibraryScanner(wx.Dialog):
@@ -43,11 +44,15 @@ class LibraryScanner(wx.Dialog):
 		
 		self._init_ctrls(parent)
 		
+		self._running_add_all = False
+		
 		
 	def _init_ctrls(self, parent):
 		wx.Dialog.__init__(self, name='MovieEditor', parent=parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
 			title=self.title, size=wx.Size(-1,-1))
+			
+		self.Bind(wx.EVT_CLOSE, self.OnClose)
 			
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		self.SetSizer(vbox)
@@ -301,58 +306,99 @@ class LibraryScanner(wx.Dialog):
 		pass
 		
 		
+	def OnClose(self, event):
+		self._running_add_all = False
+		self.EndModal(0)
+		
+	
+	def OnAddAll(self, event):
+		if self._running_add_all == False:
+			if self.fileList.GetItemCount() == 0:
+				return
+				
+			self._running_add_all = True
+			self.btnAddAll.SetLabel("Stop")
+			self.btnScan.Enable(False)
+			self.btnAddNew.Enable(False)
+		
+			thread.start_new_thread(self._batch_downloader, ())
+		else:
+			self._running_add_all = False
+			self.btnAddAll.SetLabel("Stopping...")
+			self.btnAddAll.Enable(False)
+		
+		
+	def OnDoneAddAll(self):
+		self._running_add_all = False
+		self.btnAddAll.SetLabel("Add All to New Movies")
+		self.btnAddAll.Enable(True)
+		self.btnScan.Enable(True)
+		self.btnAddNew.Enable(True)
+		
+	
 	def _todblist(self, values):
 		result = []
 		for value in values:
 			rowid = 0
 			state = 'normal'
 			result.append((rowid, value, state))
-		return result
+		return result	
 		
-	
-	def OnAddAll(self, event):
 		
-		if self.fileList.GetItemCount() == 0:
-			return
+	def _batch_downloader(self):
+		#TODO Status update while doing this
+		try:
+			db = DbInterface.DbInterface(self.db._dbfile)
 			
-		index = 0
-		while index < self.fileList.GetItemCount():
-			filename = self.fileList.GetItemText(index)
+			index = 0
+			while index < self.fileList.GetItemCount():
+				filename = self.fileList.GetItemText(index)
 			
-			title, year = self._get_title_and_year_from_filename(filename)
+				title, year = self._get_title_and_year_from_filename(filename)
 			
-			if title != '':
-				metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
+				if title != '':
+					metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
 				
-				if metadata != None:
-					if metadata['title'] != '':
-						movieid = self.db.addMovie(
-							metadata['title'],
-							'',
-							metadata['image'],
-							metadata['released'],
-							metadata['runtime'],
-							metadata['rated'],
-							metadata['summary'],
-							self._todblist(metadata['genres']), 
-							self._todblist(metadata['actors']), 
-							self._todblist(metadata['directors']),
-							self._todblist([filename,]))
+					if metadata != None:
+						if metadata['title'] != '':
+							movieid = db.addMovie(
+								metadata['title'],
+								'',
+								metadata['image'],
+								metadata['released'],
+								metadata['runtime'],
+								metadata['rated'],
+								metadata['summary'],
+								self._todblist(metadata['genres']), 
+								self._todblist(metadata['actors']), 
+								self._todblist(metadata['directors']),
+								self._todblist([filename,]))
 							
-						self.fileList.DeleteItem(index)
-						print "Added movie {0} - '{1}'".format(movieid, metadata['title'])
+							self.fileList.DeleteItem(index)
+							print "Added movie {0} - '{1}'".format(movieid, metadata['title'])
+						else:
+							print "Cannot get metadata. Skipping"
+							index += 1
 					else:
 						print "Cannot get metadata. Skipping"
 						index += 1
 				else:
-					print "Cannot get metadata. Skipping"
+					print "Cannot extract title from filename"
 					index += 1
-			else:
-				print "Cannot extract title from filename"
-				index += 1
 		
-		print "Waiting 1 second"
-		time.sleep(1)
+				print "Waiting 1 second"
+				time.sleep(1)
 			
+				print self._running_add_all
+			
+				if self._running_add_all == False:
+					"Stopping"
+					break
+						
+			db.close()
+			wx.CallAfter(self.OnDoneAddAll)	
+		except wx._core.PyDeadObjectError:
+			print "Window was closed before jobs were done"
+			db.close()
 		
 	

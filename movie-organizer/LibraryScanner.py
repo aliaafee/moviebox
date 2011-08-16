@@ -27,7 +27,7 @@ import wx
 import DbInterface
 import MovieDataEditor
 import ImdbAPI
-import BackgroundJob
+import time
 
 
 class LibraryScanner(wx.Dialog):
@@ -350,31 +350,9 @@ class LibraryScanner(wx.Dialog):
 			else:
 				print "Cannot extract title from filename"
 				index += 1
-						
-		'''
-		for index in range(0,self.fileList.GetItemCount()):
-			filename = self.fileList.GetItemText(index)
-			data = {}
-			
-			title, year = self._get_title_and_year_from_filename(filename)
-			
-			data['title'] = title
-			data['sort'] = ''
-			data['image'] = ''
-			data['released'] = year
-			data['runtime'] = ''
-			data['rated'] = ''
-			data['summary'] = ''
-			data['genres'] = []
-			data['actors'] = []
-			data['directors'] = []
-			data['files'] = [(0,filename,'normal')]
-			
-			movieid = self.db.addMovie(
-				data['title'],
-				released=data['released'],
-				files=data['files'])
-		'''
+		
+		print "Waiting 1 second"
+		time.sleep(1)
 			
 		
 	

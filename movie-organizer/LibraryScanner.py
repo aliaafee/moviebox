@@ -26,6 +26,9 @@ import os.path
 import wx
 import DbInterface
 import MovieDataEditor
+import ImdbAPI
+import BackgroundJob
+
 
 class LibraryScanner(wx.Dialog):
 	def __init__(self, parent, libraryLocation, metadatadb, postersPath, title='Scan Library'):
@@ -297,8 +300,60 @@ class LibraryScanner(wx.Dialog):
 	def OnAddExisting(self, event):
 		pass
 		
+		
+	def _todblist(self, values):
+		result = []
+		for value in values:
+			rowid = 0
+			state = 'normal'
+			result.append((rowid, value, state))
+		return result
+		
 	
 	def OnAddAll(self, event):
+		batch = BatchMetaDataGetter(self)
+		batch.start()
+		
+		if self.fileList.GetItemCount() == 0:
+			return
+			
+		index = 0
+		while index < self.fileList.GetItemCount():
+			filename = self.fileList.GetItemText(index)
+			
+			title, year = self._get_title_and_year_from_filename(filename)
+			
+			if title != '':
+				metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
+				
+				if metadata != None:
+					if metadata['title'] != '':
+						movieid = self.db.addMovie(
+							metadata['title'],
+							'',
+							metadata['image'],
+							metadata['released'],
+							metadata['runtime'],
+							metadata['rated'],
+							metadata['summary'],
+							self._todblist(metadata['genres']), 
+							self._todblist(metadata['actors']), 
+							self._todblist(metadata['directors']),
+							self._todblist([filename,]))
+							
+						self.fileList.DeleteItem(index)
+						print "Added movie {0} - '{1}'".format(movieid, metadata['title'])
+					else:
+						print "Cannot get metadata. Skipping"
+						index += 1
+				else:
+					print "Cannot get metadata. Skipping"
+					index += 1
+			else:
+				print "Cannot extract title from filename"
+				index += 1
+						
+		'''
 		for index in range(0,self.fileList.GetItemCount()):
 			filename = self.fileList.GetItemText(index)
 			data = {}
@@ -321,6 +376,7 @@ class LibraryScanner(wx.Dialog):
 				data['title'],
 				released=data['released'],
 				files=data['files'])
+		'''
 			
 		
 	

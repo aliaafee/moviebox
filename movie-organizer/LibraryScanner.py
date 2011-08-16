@@ -64,9 +64,9 @@ class LibraryScanner(wx.Dialog):
 		self.btnAddNew.Bind(wx.EVT_BUTTON, self.OnAddNew)
 		vbox.Add(self.btnAddNew, 0, wx.EXPAND)
 		
-		self.btnAddExisting = wx.Button(self, label='Add Selection to Existing Movie')
-		self.btnAddExisting.Bind(wx.EVT_BUTTON, self.OnAddExisting)
-		vbox.Add(self.btnAddExisting, 0, wx.EXPAND)
+		#self.btnAddExisting = wx.Button(self, label='Add Selection to Existing Movie')
+		#self.btnAddExisting.Bind(wx.EVT_BUTTON, self.OnAddExisting)
+		#vbox.Add(self.btnAddExisting, 0, wx.EXPAND)
 		
 		self.btnAddAll = wx.Button(self, label='Add All to New Movies')
 		self.btnAddAll.Bind(wx.EVT_BUTTON, self.OnAddAll)

@@ -398,7 +398,7 @@ class LibraryScanner(wx.Dialog):
 			db.close()
 			wx.CallAfter(self.OnDoneAddAll)	
 		except wx._core.PyDeadObjectError:
-			print "Window was closed before jobs were done"
+			print "Window was closed before job was done"
 			db.close()
 		
 	

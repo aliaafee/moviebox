@@ -110,42 +110,49 @@ class MainFrame(wx.Frame):
 		
 		self.statusBar = self.CreateStatusBar()
 		
+		#the main splitter window
 		self.splitBase = wx.SplitterWindow(self, style=wx.SP_NOBORDER)
 		
+		#Create the treectrl for the filters
 		self.movieFilter = wx.TreeCtrl(self.splitBase, style=wx.TR_DEFAULT_STYLE | wx.SUNKEN_BORDER)
 		self._init_filter()
 		self.movieFilter.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnMovieFilterSelChanged)
 		
+		#the right hand window of the main splitter
 		self.splitRight = wx.SplitterWindow(self.splitBase, style=wx.SP_NOBORDER)
 		
 		self.splitBase.SplitVertically(self.movieFilter, self.splitRight)
 		self.splitBase.SetSashPosition(160)
 		
+		#panel to hold the movielist and its toolbar
 		self.movieListPanel = wx.Panel(self.splitRight)
 		
-		vbox = wx.BoxSizer(wx.VERTICAL)
-		
 		self.movieListTb = self._create_movie_list_tb(self.movieListPanel)
-		vbox.Add(self.movieListTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
 		
+		#the list of movies
 		self.movieList = wx.ListView(self.movieListPanel, size=wx.Size(210,-1), style=wx.LC_REPORT | wx.SUNKEN_BORDER)
 		self.movieList.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnMovieListSelected)
 		self.movieList.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnMovieListRightClick)
-		vbox.Add(self.movieList, 1, wx.EXPAND | wx.ALL, 1)
-		
-		self.movieListPanel.SetSizer(vbox)
-		
-		self.movieDetail = wx.Panel(self.splitRight)
 		
 		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.movieListTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
+		vbox.Add(self.movieList, 1, wx.EXPAND | wx.ALL, 1)
+		self.movieListPanel.SetSizer(vbox)
+		self.movieListPanel.Layout()
+		
+		#panel to display movie details
+		self.movieDetail = wx.Panel(self.splitRight)
 		
 		self.movieDetailTb = self._create_movie_detail_tb(self.movieDetail)
-		vbox.Add(self.movieDetailTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
 		
+		#htmlwindow showing movie details
 		self.movieDetailHtml = wx.html.HtmlWindow(self.movieDetail, style=wx.SUNKEN_BORDER)
-		vbox.Add(self.movieDetailHtml, 1, wx.EXPAND | wx.ALL, 1)
 		
+		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.movieDetailTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
+		vbox.Add(self.movieDetailHtml, 1, wx.EXPAND | wx.ALL, 1)
 		self.movieDetail.SetSizer(vbox)
+		self.movieDetail.Layout()
 		
 		self.splitRight.SplitVertically(self.movieListPanel, self.movieDetail)
 		self.splitRight.SetSashPosition(210)

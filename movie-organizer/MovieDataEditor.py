@@ -121,6 +121,7 @@ class MovieDataEditor(wx.Dialog):
 		gridSizer.Add(wx.StaticText(self.fieldWindow, label=''))
 		
 		self.fieldWindow.SetSizer(gridSizer)
+		self.fieldWindow.Layout()
 		
 		self.btnSizer = self.CreateButtonSizer(wx.CANCEL)
 		
@@ -137,6 +138,7 @@ class MovieDataEditor(wx.Dialog):
 		vbox.Add(self.btnSizer, 0, wx.ALIGN_CENTER)
 		
 		self.SetSizer(vbox)
+		self.Layout()
 	
 		
 	def _create_main_tb(self, parent):

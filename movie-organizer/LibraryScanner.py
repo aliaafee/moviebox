@@ -41,10 +41,16 @@ class LibraryScanner(wx.Dialog):
 		self.db = metadatadb
 		
 		self.title = title
+		self._scanning = False
+		self._added = 0 
+		self._unrecognized = 0
+		self._ignored = 0
+		
+		self._unrecognizedFiles = []
+		
+		self._closed = False
 		
 		self._init_ctrls(parent)
-		
-		self._running_add_all = False
 		
 		
 	def _init_ctrls(self, parent):
@@ -54,29 +60,201 @@ class LibraryScanner(wx.Dialog):
 			
 		self.Bind(wx.EVT_CLOSE, self.OnClose)
 			
+		self.lblStatus = wx.StaticText(self, label='Click Start to scan the library')
+		
+		self.lblDir = wx.StaticText(self, label='')
+		
+		self.lblFile = wx.StaticText(self, label='')
+		
+		self.lblCount = wx.StaticText(self, label='')
+		
+		self.lstAdded = wx.ListBox(self)
+		
+		self.btnStartStop = wx.Button(self, label='Start')
+		self.btnStartStop.Bind(wx.EVT_BUTTON, self.OnStartStop)
+		
+		self.btnClose = wx.Button(self, label="Close")
+		self.btnClose.Bind(wx.EVT_BUTTON, self.OnClose)
+		
+		hbox = wx.BoxSizer(wx.HORIZONTAL)
+		hbox.Add(self.btnStartStop, 0, 5)
+		hbox.Add(self.btnClose, 0, 5)
+		
 		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.lblStatus, 0, wx.ALL, 5)
+		vbox.Add(self.lblDir, 0, wx.ALL, 5)
+		vbox.Add(self.lblFile, 0, wx.ALL, 5)
+		vbox.Add(self.lblCount, 0, wx.ALL, 5)
+		vbox.Add(self.lstAdded, 1, wx.ALL|wx.EXPAND, 10)
+		vbox.Add(hbox, 0, wx.ALIGN_CENTER, 5)
+		
 		self.SetSizer(vbox)
+		self.Layout()
 		
-		self.btnScan = wx.Button(self, label='Scan')
-		self.btnScan.Bind(wx.EVT_BUTTON, self.OnScan)
-		vbox.Add(self.btnScan, 0, wx.EXPAND)
 		
-		self.fileList = wx.ListCtrl(self, style=wx.LC_REPORT)
-		self.fileList.InsertColumn(0,'Files', width=300)
-		vbox.Add(self.fileList, 1, wx.EXPAND, 10)
+	def _start_scan(self):
+		try:
+			db = DbInterface.DbInterface(self.db._dbfile)
+			
+			self.db2 = db
+			
+			self._scan(self.libraryLocation, '')
+			
+			db.close()
+			
+			wx.CallAfter(self._done_scan)
+			
+		except wx._core.PyDeadObjectError, e:
+			db.close()
+			
+			print "Window destroyed uncleanly"
+			print e
 		
-		self.btnAddNew = wx.Button(self, label='Add Selection to New Movie')
-		self.btnAddNew.Bind(wx.EVT_BUTTON, self.OnAddNew)
-		vbox.Add(self.btnAddNew, 0, wx.EXPAND)
 		
-		#self.btnAddExisting = wx.Button(self, label='Add Selection to Existing Movie')
-		#self.btnAddExisting.Bind(wx.EVT_BUTTON, self.OnAddExisting)
-		#vbox.Add(self.btnAddExisting, 0, wx.EXPAND)
+	def _scan(self, dir_name, short_dir_name):
+		files = []
+		fs = os.listdir(dir_name)
+		for f in fs:
+			fileName = os.path.join(dir_name, f)
+			if os.path.isdir(fileName):
+				if f != 'metadata':
+					shortFileName = os.path.join(short_dir_name, f)
+					f2s = self._scan(fileName, shortFileName)
+					for f2 in f2s:
+						files.append(f2)
+			else:
+				self._status(
+					dirname=short_dir_name + os.path.sep,
+					filename=f)
+
+				if self._is_valid_file_type(f):
+					shortFileName = os.path.join(short_dir_name, f)
+					fileid = self.db2.getFileId(shortFileName)
+					if fileid == None:
+						self._add_movie(shortFileName)
+						files.append(shortFileName)
+					else:
+						print u"file: '{0}' exists in library".format(shortFileName)
+						if not self.db2.fileIsLinked(fileid):
+							print "      and is not linked to a movie, so added"
+							self._add_movie(shortFileName)
+							files.append(shortFileName)
+						else:
+							print "      and is linked to a movie, so ignored"
+							self._count(ignored=1)
+							
+			if self._scanning == False:
+				return [] 
+							
+		return files
 		
-		self.btnAddAll = wx.Button(self, label='Add All to New Movies')
-		self.btnAddAll.Bind(wx.EVT_BUTTON, self.OnAddAll)
-		vbox.Add(self.btnAddAll, 0, wx.EXPAND)
 		
+	def _add_movie(self, shortFileName):
+		title, year = self._get_title_and_year_from_filename(shortFileName)
+		
+		if title != '':
+			metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
+		
+			if metadata != None:
+				if metadata['title'] != '':
+					movieid = self.db2.addMovie(
+						metadata['title'],
+						'',
+						metadata['image'],
+						metadata['released'],
+						metadata['runtime'],
+						metadata['rated'],
+						metadata['summary'],
+						self._todblist(metadata['genres']), 
+						self._todblist(metadata['actors']), 
+						self._todblist(metadata['directors']),
+						self._todblist([shortFileName,]))
+					
+					print "Added movie {0} - '{1}'".format(movieid, metadata['title'])
+					
+					text = u'{0}({1})'.format(metadata['title'], metadata['released'])
+					
+					self._count(added=1)
+					wx.CallAfter(self.lstAdded.Insert, text, 0)
+					
+					time.sleep(1)
+				else:
+					print "Cannot get metadata. Skipping"
+					self._count(unrecognized=1)
+					self._unrecognizedFiles.append(shortFileName)
+			else:
+				print "Cannot get metadata. Skipping"
+				self._count(unrecognized=1)
+				self._unrecognizedFiles.append(shortFileName)
+		else:
+			print "Cannot extract title from filename"
+			self._count(unrecognized=1)
+			self._unrecognizedFiles.append(shortFileName)
+		
+		
+	def _status(self, filename='', dirname=''):
+		if dirname != '':
+			wx.CallAfter(self.lblDir.SetLabel, dirname)
+		if filename != '':
+			wx.CallAfter(self.lblFile.SetLabel, filename)
+		
+		
+	def _count(self, added=0, unrecognized=0, ignored=0):
+		self._added += added
+		self._unrecognized += unrecognized
+		self._ignored += ignored
+		
+		wx.CallAfter(self.lblCount.SetLabel,
+			'{0} Added, {1} Unrecognized, {2} Ignored'.format(
+				self._added,
+				self._unrecognized,
+				self._ignored))
+		
+		
+	def _done_scan(self):
+		self._scanning = False
+		self.btnStartStop.SetLabel("Start")
+		self.btnStartStop.Enable(True)
+		self.lblStatus.SetLabel("Finished scanning the library")
+		self.lblDir.SetLabel('')
+		self.lblFile.SetLabel('')
+		
+		if self._closed == True:
+			self.EndModal(wx.OK)
+		
+		
+	def OnStartStop(self, events):
+		if self._scanning == False:
+			self._scanning = True
+			self.btnStartStop.SetLabel("Stop")
+			self.lblStatus.SetLabel("Scanning...")
+			self.lstAdded.Clear()
+			self._unrecognizedFiles = []
+			thread.start_new_thread(self._start_scan, ())
+		else:
+			self._scanning = False
+			#self.btnStartStop.SetLabel("Stopping...")
+			self.lblStatus.SetLabel("Stopping...")
+			self.btnStartStop.Enable(False)
+			
+			
+	def OnClose(self, event):
+		if self._closed == False:
+			if self._scanning == False:
+				print "A"
+				self.EndModal(wx.OK)
+			else:
+				print "B"
+				self._scanning = False
+				self._closed = True
+				#self.btnStartStop.SetLabel("Stopping...")
+				self.lblStatus.SetLabel("Closing...")
+				self.btnStartStop.Enable(False)
+			
+			
+	def GetUnrecognizedFiles():
+		return self._unrecognizedFiles
+
 
 	def _is_valid_file_type(self, file_name):
 		file_name = file_name.lower()
@@ -86,67 +264,7 @@ class LibraryScanner(wx.Dialog):
 			return True
 		else:
 			return False
-		
-
-	def _get_files(self, dir_name, short_dir_name):
-		files = []
-		fs = os.listdir(dir_name)
-		for f in fs:
-			fileName = os.path.join(dir_name, f)
-			if os.path.isdir(fileName):
-				if f != 'metadata':
-					shortFileName = os.path.join(short_dir_name, f)
-					f2s = self._get_files(fileName, shortFileName)
-					for f2 in f2s:
-						files.append(f2)
-			else:
-				if self._is_valid_file_type(f):
-					shortFileName = os.path.join(short_dir_name, f)
-					fileid = self.db.getFileId(shortFileName)
-					if fileid == None:
-						files.append(shortFileName)
-					else:
-						print u"file: '{0}' exists in library".format(shortFileName)
-						if not self.db.fileIsLinked(fileid):
-							print "      and is not linked to a movie, so added"
-							files.append(shortFileName)
-						else:
-							print "      and is linked to a movie, so ignored" 
-							
-		return files
-		
-		
-	def _get_selection(self):
-		selection = []
-		
-		if self.fileList.GetSelectedItemCount() == 0:
-			return selection
-			
-		selectedItem = self.fileList.GetNextSelected(-1)
-		while selectedItem != -1:
-			selection.append(self.fileList.GetItemText(selectedItem))
-			selectedItem = self.fileList.GetNextSelected(selectedItem)
-			
-		return selection
-		
-		
-	def _delete_selection(self):
-		if self.fileList.GetSelectedItemCount() == 0:
-			return
-			
-		selectedItem = self.fileList.GetNextSelected(-1)
-		while selectedItem != -1:
-			self.fileList.DeleteItem(selectedItem)
-			selectedItem = self.fileList.GetNextSelected(-1)
-		
-	
-	def _get_selection_for_moviedataeditor(self):
-		selection = self._get_selection()
-		result = []
-		for item in selection:
-			result.append((0, item))
-		return result
-			
+				
 			
 	def _get_bracketed(self, text, bracketO, bracketC):
 		values = text.split(bracketO)
@@ -249,92 +367,6 @@ class LibraryScanner(wx.Dialog):
 		moviename = self._clean_up_moviename(moviename)
 		return (moviename, year)
 		
-		
-	def OnScan(self, event):
-		fs = self._get_files(self.libraryLocation,'')
-		self.fileList.DeleteAllItems()
-		for f in fs:
-			self.fileList.Append((f,))
-		
-		
-	def OnAddNew(self, event):
-		selectedFiles = self._get_selection_for_moviedataeditor()
-		if len(selectedFiles) > 0:
-			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, 'Add Movie to Library')
-			data = {}
-			
-			title, year = self._get_title_and_year_from_filename(selectedFiles[0][1])
-			
-			data['title'] = title
-			data['sort'] = ''
-			data['image'] = ''
-			data['released'] = year
-			data['runtime'] = ''
-			data['rated'] = ''
-			data['summary'] = ''
-			data['genres'] = []
-			data['actors'] = []
-			data['directors'] = []
-			data['files'] = selectedFiles
-			
-			dlg.SetData(data)
-			
-			result = dlg.ShowModal()
-			if result == wx.ID_OK:
-				data = dlg.GetData()
-				if data['title'] != '':
-					movieid = self.db.addMovie(data['title'],
-						data['sort'],data['image'],data['released'],
-						data['runtime'],data['rated'],data['summary'],
-						data['genres'], data['actors'], data['directors'],
-						data['files'])
-				
-					print "movie added"
-					
-					self._delete_selection()
-				else:
-					msg = wx.MessageDialog(self, 
-						'No title set so movie not added', 
-						'Error Adding Movie to Library', wx.OK|wx.ICON_INFORMATION)
-					msg.ShowModal()
-					msg.Destroy()
-		
-			dlg.Destroy()
-			
-			
-	def OnAddExisting(self, event):
-		pass
-		
-		
-	def OnClose(self, event):
-		self._running_add_all = False
-		self.EndModal(0)
-		
-	
-	def OnAddAll(self, event):
-		if self._running_add_all == False:
-			if self.fileList.GetItemCount() == 0:
-				return
-				
-			self._running_add_all = True
-			self.btnAddAll.SetLabel("Stop")
-			self.btnScan.Enable(False)
-			self.btnAddNew.Enable(False)
-		
-			thread.start_new_thread(self._batch_downloader, ())
-		else:
-			self._running_add_all = False
-			self.btnAddAll.SetLabel("Stopping...")
-			self.btnAddAll.Enable(False)
-		
-		
-	def OnDoneAddAll(self):
-		self._running_add_all = False
-		self.btnAddAll.SetLabel("Add All to New Movies")
-		self.btnAddAll.Enable(True)
-		self.btnScan.Enable(True)
-		self.btnAddNew.Enable(True)
-		
 	
 	def _todblist(self, values):
 		result = []
@@ -342,63 +374,5 @@ class LibraryScanner(wx.Dialog):
 			rowid = 0
 			state = 'normal'
 			result.append((rowid, value, state))
-		return result	
-		
-		
-	def _batch_downloader(self):
-		#TODO Status update while doing this
-		try:
-			db = DbInterface.DbInterface(self.db._dbfile)
-			
-			index = 0
-			while index < self.fileList.GetItemCount():
-				filename = self.fileList.GetItemText(index)
-			
-				title, year = self._get_title_and_year_from_filename(filename)
-			
-				if title != '':
-					metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
-				
-					if metadata != None:
-						if metadata['title'] != '':
-							movieid = db.addMovie(
-								metadata['title'],
-								'',
-								metadata['image'],
-								metadata['released'],
-								metadata['runtime'],
-								metadata['rated'],
-								metadata['summary'],
-								self._todblist(metadata['genres']), 
-								self._todblist(metadata['actors']), 
-								self._todblist(metadata['directors']),
-								self._todblist([filename,]))
-							
-							self.fileList.DeleteItem(index)
-							print "Added movie {0} - '{1}'".format(movieid, metadata['title'])
-						else:
-							print "Cannot get metadata. Skipping"
-							index += 1
-					else:
-						print "Cannot get metadata. Skipping"
-						index += 1
-				else:
-					print "Cannot extract title from filename"
-					index += 1
-		
-				print "Waiting 1 second"
-				time.sleep(1)
-			
-				print self._running_add_all
-			
-				if self._running_add_all == False:
-					"Stopping"
-					break
-						
-			db.close()
-			wx.CallAfter(self.OnDoneAddAll)	
-		except wx._core.PyDeadObjectError:
-			print "Window was closed before job was done"
-			db.close()
-		
+		return result
 	

@@ -41,7 +41,13 @@ class LibraryScanner(wx.Dialog):
 		self.db = metadatadb
 		
 		self.title = title
+		
+		self._autoAdd = True
+		
 		self._scanning = False
+		
+		self._found = 0
+		self._new = 0
 		self._added = 0 
 		self._unrecognized = 0
 		self._ignored = 0
@@ -59,33 +65,96 @@ class LibraryScanner(wx.Dialog):
 			title=self.title, size=wx.Size(-1,-1))
 			
 		self.Bind(wx.EVT_CLOSE, self.OnClose)
+		
+		self.chkAutoAdd = wx.CheckBox(self, label="Auto Add Files to library")
+		self.chkAutoAdd.SetValue(True)
+		self.Bind(wx.EVT_CHECKBOX, self.OnToggleAutoAdd, self.chkAutoAdd)
 			
-		self.lblStatus = wx.StaticText(self, label='Click Start to scan the library')
+		self.lblStatus = wx.StaticText(self, label='Click "Scan" to scan the library')
 		
 		self.lblDir = wx.StaticText(self, label='')
+		self.lblDir.Show(False)
 		
 		self.lblFile = wx.StaticText(self, label='')
+		self.lblFile.Show(False)
 		
 		self.lblCount = wx.StaticText(self, label='')
 		
-		self.lstAdded = wx.ListBox(self)
+		#this displayed when autoadd is enabled
+		self.autoAddDisp = wx.Notebook(self, style=wx.BK_DEFAULT)
 		
-		self.btnStartStop = wx.Button(self, label='Start')
+		self.lstAdded = wx.ListBox(self.autoAddDisp)
+		
+		self.autoAddDisp.AddPage(self.lstAdded, "Added")
+		
+		self.pnlUnrecognized = wx.Panel(self.autoAddDisp)
+		
+		self.lstUnrecognized = wx.ListCtrl(self.pnlUnrecognized, style=wx.LC_REPORT|wx.SUNKEN_BORDER)
+		self.lstUnrecognized.InsertColumn(0,'Files', width=300)
+		
+		self.addUnrecognizedNew = wx.Button(self.pnlUnrecognized, 
+			label="Add to new movie")
+		self.addUnrecognizedNew.Bind(wx.EVT_BUTTON, self.OnAddUnrecNew)
+		
+		self.addUnrecognizedExisting = wx.Button(self.pnlUnrecognized,
+			label="Add to existing movie")
+		self.addUnrecognizedExisting.Bind(wx.EVT_BUTTON, self.OnAddUnrecExist)
+		
+		ubox = wx.BoxSizer(wx.VERTICAL)
+		ubox.Add(self.lstUnrecognized, 1, wx.ALL|wx.EXPAND, 3)
+		ubox.Add(self.addUnrecognizedNew, 0, wx.ALL, 3)
+		ubox.Add(self.addUnrecognizedExisting, 0, wx.ALL, 3)
+		self.pnlUnrecognized.SetSizer(ubox)
+		self.pnlUnrecognized.Layout()
+		
+		self.autoAddDisp.AddPage(self.pnlUnrecognized, "Unrecognized")
+		
+		#this displayed when autoadd is disabled
+		self.noAutoDisp = wx.Panel(self, style=wx.RAISED_BORDER)
+		
+		self.lstFound = wx.ListCtrl(self.noAutoDisp, style=wx.LC_REPORT|wx.SUNKEN_BORDER)
+		self.lstFound.InsertColumn(0,'Files', width=300)
+		
+		self.addNew = wx.Button(self.noAutoDisp, 
+			label="Add to new movie")
+		self.addNew.Bind(wx.EVT_BUTTON, self.OnAddNew)
+		
+		self.addExisting = wx.Button(self.noAutoDisp,
+			label="Add to existing movie")
+		self.addExisting.Bind(wx.EVT_BUTTON, self.OnAddExisting)
+		
+		nbox = wx.BoxSizer(wx.VERTICAL)
+		nbox.Add(self.lstFound, 1, wx.ALL|wx.EXPAND, 3)
+		nbox.Add(self.addNew, 0, wx.ALL, 3)
+		nbox.Add(self.addExisting, 0, wx.ALL, 3)
+		self.noAutoDisp.SetSizer(nbox)
+		self.noAutoDisp.Layout()
+		
+		self.noAutoDisp.Show(False)
+		
+		#start/stop and close
+		self.btnStartStop = wx.Button(self, label='Scan')
 		self.btnStartStop.Bind(wx.EVT_BUTTON, self.OnStartStop)
 		
 		self.btnClose = wx.Button(self, label="Close")
 		self.btnClose.Bind(wx.EVT_BUTTON, self.OnClose)
+		
+		#layout
+		sbox = wx.BoxSizer(wx.VERTICAL)
+		sbox.Add(self.lblStatus, 0, wx.ALL, 3)
+		sbox.Add(self.lblCount, 0, wx.ALL, 3)
+		sbox.Add(self.lblDir, 0, wx.ALL, 3)
+		sbox.Add(self.lblFile, 0, wx.ALL, 3)
 		
 		hbox = wx.BoxSizer(wx.HORIZONTAL)
 		hbox.Add(self.btnStartStop, 0, 5)
 		hbox.Add(self.btnClose, 0, 5)
 		
 		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(self.lblStatus, 0, wx.ALL, 5)
-		vbox.Add(self.lblDir, 0, wx.ALL, 5)
-		vbox.Add(self.lblFile, 0, wx.ALL, 5)
-		vbox.Add(self.lblCount, 0, wx.ALL, 5)
-		vbox.Add(self.lstAdded, 1, wx.ALL|wx.EXPAND, 10)
+		vbox.Add(self.chkAutoAdd,0, wx.ALL, 5)
+		vbox.Add(sbox, 0, wx.ALL, 5)
+		vbox.Add(self.autoAddDisp, 1, wx.ALL|wx.EXPAND, 10)
+		vbox.Add(self.noAutoDisp, 1, wx.ALL|wx.EXPAND, 10)
 		vbox.Add(hbox, 0, wx.ALIGN_CENTER, 5)
 		
 		self.SetSizer(vbox)
@@ -130,17 +199,18 @@ class LibraryScanner(wx.Dialog):
 				if self._is_valid_file_type(f):
 					shortFileName = os.path.join(short_dir_name, f)
 					fileid = self.db2.getFileId(shortFileName)
+					self._count(found=1)
 					if fileid == None:
 						self._add_movie(shortFileName)
 						files.append(shortFileName)
 					else:
-						print u"file: '{0}' exists in library".format(shortFileName)
+						#print u"file: '{0}' exists in library".format(shortFileName)
 						if not self.db2.fileIsLinked(fileid):
-							print "      and is not linked to a movie, so added"
+							#print "      and is not linked to a movie, so added"
 							self._add_movie(shortFileName)
 							files.append(shortFileName)
 						else:
-							print "      and is linked to a movie, so ignored"
+							#print "      and is linked to a movie, so ignored"
 							self._count(ignored=1)
 							
 			if self._scanning == False:
@@ -150,6 +220,12 @@ class LibraryScanner(wx.Dialog):
 		
 		
 	def _add_movie(self, shortFileName):
+		self._count(new=1)
+		
+		if not self._autoAdd:
+			wx.CallAfter(self.lstFound.Append, (shortFileName,))
+			return
+		
 		title, year = self._get_title_and_year_from_filename(shortFileName)
 		
 		if title != '':
@@ -180,16 +256,21 @@ class LibraryScanner(wx.Dialog):
 					time.sleep(1)
 				else:
 					print "Cannot get metadata. Skipping"
-					self._count(unrecognized=1)
-					self._unrecognizedFiles.append(shortFileName)
+					self._add_unrecognized(shortFileName)
 			else:
 				print "Cannot get metadata. Skipping"
-				self._count(unrecognized=1)
-				self._unrecognizedFiles.append(shortFileName)
+				self._add_unrecognized(shortFileName)
 		else:
 			print "Cannot extract title from filename"
-			self._count(unrecognized=1)
-			self._unrecognizedFiles.append(shortFileName)
+			self._add_unrecognized(shortFileName)
+			
+			
+	def _add_unrecognized(self, shortFileName):
+		self._count(unrecognized=1)
+		
+		self._unrecognizedFiles.append(shortFileName)
+		
+		wx.CallAfter(self.lstUnrecognized.Append, (shortFileName,))
 		
 		
 	def _status(self, filename='', dirname=''):
@@ -199,13 +280,25 @@ class LibraryScanner(wx.Dialog):
 			wx.CallAfter(self.lblFile.SetLabel, filename)
 		
 		
-	def _count(self, added=0, unrecognized=0, ignored=0):
+	def _count_reset(self):
+		self._found = 0
+		self._new = 0
+		self._added = 0
+		self._unrecognized = 0
+		self._ignored = 0
+		
+		
+	def _count(self, found=0, new=0, added=0, unrecognized=0, ignored=0):
+		self._found += found
+		self._new += new
 		self._added += added
 		self._unrecognized += unrecognized
 		self._ignored += ignored
 		
 		wx.CallAfter(self.lblCount.SetLabel,
-			'{0} Added, {1} Unrecognized, {2} Ignored'.format(
+			'{0} Found, {1} New, {2} Added, {3} Unrecognized, {4} Ignored'.format(
+				self._found,
+				self._new,
 				self._added,
 				self._unrecognized,
 				self._ignored))
@@ -215,20 +308,36 @@ class LibraryScanner(wx.Dialog):
 		self._scanning = False
 		self.btnStartStop.SetLabel("Start")
 		self.btnStartStop.Enable(True)
+		self.chkAutoAdd.Enable(True)
+		self.addNew.Enable(True)
+		self.addExisting.Enable(True)
+		self.addUnrecognizedNew.Enable(True)
+		self.addUnrecognizedExisting.Enable(True)
 		self.lblStatus.SetLabel("Finished scanning the library")
 		self.lblDir.SetLabel('')
 		self.lblFile.SetLabel('')
 		
 		if self._closed == True:
 			self.EndModal(wx.OK)
-		
+			
 		
 	def OnStartStop(self, events):
 		if self._scanning == False:
 			self._scanning = True
 			self.btnStartStop.SetLabel("Stop")
 			self.lblStatus.SetLabel("Scanning...")
+			self.lblDir.SetLabel('')
+			self.lblFile.SetLabel('')
+			self.lblCount.SetLabel('')
+			self.chkAutoAdd.Enable(False)
+			self.addNew.Enable(False)
+			self.addExisting.Enable(False)
+			self.addUnrecognizedNew.Enable(False)
+			self.addUnrecognizedExisting.Enable(False)
+			self._count_reset()
 			self.lstAdded.Clear()
+			self.lstUnrecognized.DeleteAllItems()
+			self.lstFound.DeleteAllItems()
 			self._unrecognizedFiles = []
 			thread.start_new_thread(self._start_scan, ())
 		else:
@@ -236,24 +345,6 @@ class LibraryScanner(wx.Dialog):
 			#self.btnStartStop.SetLabel("Stopping...")
 			self.lblStatus.SetLabel("Stopping...")
 			self.btnStartStop.Enable(False)
-			
-			
-	def OnClose(self, event):
-		if self._closed == False:
-			if self._scanning == False:
-				print "A"
-				self.EndModal(wx.OK)
-			else:
-				print "B"
-				self._scanning = False
-				self._closed = True
-				#self.btnStartStop.SetLabel("Stopping...")
-				self.lblStatus.SetLabel("Closing...")
-				self.btnStartStop.Enable(False)
-			
-			
-	def GetUnrecognizedFiles():
-		return self._unrecognizedFiles
 
 
 	def _is_valid_file_type(self, file_name):
@@ -375,4 +466,126 @@ class LibraryScanner(wx.Dialog):
 			state = 'normal'
 			result.append((rowid, value, state))
 		return result
+		
+		
+	def OnToggleAutoAdd(self, event):
+		self._autoAdd = event.IsChecked()
+		if self._autoAdd:
+			self.autoAddDisp.Show(True)
+			self.noAutoDisp.Show(False)
+			self.Layout()
+		else:
+			self.autoAddDisp.Show(False)
+			self.noAutoDisp.Show(True)
+			self.Layout()
+			
+			
+	def _get_selection(self, fileList):
+		selection = []
+		
+		if fileList.GetSelectedItemCount() == 0:
+			return selection
+			
+		selectedItem = fileList.GetFirstSelected()
+		while selectedItem != -1:
+			selection.append((0, fileList.GetItemText(selectedItem)))
+			selectedItem = fileList.GetNextSelected(selectedItem)
+			
+		return selection
+		
+		
+	def _delete_selection(self, fileList):
+		if fileList.GetSelectedItemCount() == 0:
+			return
+			
+		selectedItem = fileList.GetFirstSelected()
+		while selectedItem != -1:
+			fileList.DeleteItem(selectedItem)
+			selectedItem = fileList.GetNextSelected(-1)
+			
+			
+	def _add_selected(self, fileList):
+		selectedFiles = self._get_selection(fileList)
+		
+		if len(selectedFiles) > 0:
+			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, 'Add Movie to Library')
+			data = {}
+			
+			title, year = self._get_title_and_year_from_filename(selectedFiles[0][1])
+			
+			data['title'] = title
+			data['sort'] = ''
+			data['image'] = ''
+			data['released'] = year
+			data['runtime'] = ''
+			data['rated'] = ''
+			data['summary'] = ''
+			data['genres'] = []
+			data['actors'] = []
+			data['directors'] = []
+			data['files'] = selectedFiles
+			
+			dlg.SetData(data)
+			
+			result = dlg.ShowModal()
+			if result == wx.ID_OK:
+				data = dlg.GetData()
+				if data['title'] != '':
+					movieid = self.db.addMovie(data['title'],
+						data['sort'],data['image'],data['released'],
+						data['runtime'],data['rated'],data['summary'],
+						data['genres'], data['actors'], data['directors'],
+						data['files'])
+				
+					print "movie added"
+					
+					self._delete_selection(fileList)
+				else:
+					msg = wx.MessageDialog(self, 
+						'No title set so movie not added', 
+						'Error Adding Movie to Library', wx.OK|wx.ICON_INFORMATION)
+					msg.ShowModal()
+					msg.Destroy()
+		
+			dlg.Destroy()
+			
+			
+	def _add_to_existing(self, fileList):
+		selectedFiles = self._get_selection(fileList)
+		
+		if len(selectedFiles) > 0:
+			dlg = wx.MessageDialog(self, 
+				'Feature not implemented yet', 
+				'Sorry', wx.OK|wx.ICON_INFORMATION)
+			
+			dlg.ShowModal()
+			
+			dlg.Destroy()
+			
+			
+	def OnAddUnrecNew(self, event):
+		self._add_selected(self.lstUnrecognized)
+		
+	
+	def OnAddUnrecExist(self, event):
+		self._add_to_existing(self.lstUnrecognized)
+		
+		
+	def OnAddNew(self, event):
+		self._add_selected(self.lstFound)
+	
+	def OnAddExisting(self, event):
+		self._add_to_existing(self.lstFound)
+		
+			
+	def OnClose(self, event):
+		if self._closed == False:
+			if self._scanning == False:
+				self.EndModal(wx.OK)
+			else:
+				self._scanning = False
+				self._closed = True
+				#self.btnStartStop.SetLabel("Stopping...")
+				self.lblStatus.SetLabel("Closing...")
+				self.btnStartStop.Enable(False)
 	

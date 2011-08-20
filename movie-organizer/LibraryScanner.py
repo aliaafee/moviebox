@@ -297,13 +297,20 @@ class LibraryScanner(wx.Dialog):
 		self._unrecognized += unrecognized
 		self._ignored += ignored
 		
-		wx.CallAfter(self.lblCount.SetLabel,
-			'{0} Found, {1} New, {2} Added, {3} Unrecognized, {4} Ignored'.format(
-				self._found,
-				self._new,
-				self._added,
-				self._unrecognized,
-				self._ignored))
+		status = []
+		
+		status.append('{0} Found'.format(self._found))
+		status.append('{0} New'.format(self._new))
+		
+		if self._added > 0:
+			status.append('{0} Added'.format(self._added))
+		if self._unrecognized > 0:
+			status.append('{0} Unrecognized'.format(self._unrecognized))
+		if self._ignored > 0:
+			status.append('{0} Ignored'.format(self._ignored))
+			
+		
+		wx.CallAfter(self.lblCount.SetLabel, ", ".join(status))
 		
 		
 	def _done_scan(self):

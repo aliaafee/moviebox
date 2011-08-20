@@ -41,7 +41,6 @@ class MovieDataEditor(wx.Dialog):
 		self.postersPath = postersPath
 		
 		self.metadatagetter = None
-		self.Bind(ImdbAPI.EVT_DONE_GETMETADATA, self.OnDoneGettingMetadata)
 		
 	
 	def _init_ctrls(self, parent):

@@ -99,6 +99,7 @@ class LibraryScanner(wx.Dialog):
 		self.addUnrecognizedExisting = wx.Button(self.pnlUnrecognized,
 			label="Add to existing movie")
 		self.addUnrecognizedExisting.Bind(wx.EVT_BUTTON, self.OnAddUnrecExist)
+		self.addUnrecognizedExisting.Show(False) #this hidden for now
 		
 		ubox = wx.BoxSizer(wx.VERTICAL)
 		ubox.Add(self.lstUnrecognized, 1, wx.ALL|wx.EXPAND, 3)
@@ -122,6 +123,7 @@ class LibraryScanner(wx.Dialog):
 		self.addExisting = wx.Button(self.noAutoDisp,
 			label="Add to existing movie")
 		self.addExisting.Bind(wx.EVT_BUTTON, self.OnAddExisting)
+		self.addExisting.Show(False) #this hidden for now
 		
 		nbox = wx.BoxSizer(wx.VERTICAL)
 		nbox.Add(self.lstFound, 1, wx.ALL|wx.EXPAND, 3)
@@ -225,7 +227,7 @@ class LibraryScanner(wx.Dialog):
 		if not self._autoAdd:
 			wx.CallAfter(self.lstFound.Append, (shortFileName,))
 			return
-		
+			
 		title, year = self._get_title_and_year_from_filename(shortFileName)
 		
 		if title != '':
@@ -373,7 +375,8 @@ class LibraryScanner(wx.Dialog):
 		if len(year) == 4:
 				try:
 					year = int(year)
-					if year > 1000 and year < 9999:
+					nowyear = time.localtime(time.time())[0]
+					if year > 1900 and year <= nowyear:
 						return True
 				except ValueError:
 					pass
@@ -408,53 +411,40 @@ class LibraryScanner(wx.Dialog):
 		return ''
 		
 	
+	def _trunkate_after(self, haystack, needle):
+		upper = haystack.upper()
+		index = upper.find(needle.upper())
+	
+		if index == -1:
+			return haystack
+		else:
+			return haystack[0:index]
+		
+	
 	def _clean_up_moviename(self, moviename):
-		cut = 'DvDrip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'DVDRIP'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'DVDrip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'DvDRip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'DVDRip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = '[DVDRip]'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'DvDrip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		cut = 'BRRip'
-		if cut in moviename:
-			moviename = moviename.partition(cut)[0]
-			
-		return moviename
+		moviename = self._trunkate_after(moviename,'[eng]')
+		moviename = self._trunkate_after(moviename,'(dvdrip)')
+		moviename = self._trunkate_after(moviename,'[dvdrip]')
+		moviename = self._trunkate_after(moviename,'dvdrip')
+		moviename = self._trunkate_after(moviename,'brrip')
+		moviename = self._trunkate_after(moviename,'ts-scr')
+		moviename = self._trunkate_after(moviename,'x264')
+		moviename = moviename.replace("."," ")
+		moviename = moviename.replace("_"," ")
+		
+		return moviename.strip()
 		
 		
 	def _get_title_and_year_from_filename(self, filename):
 		filepath, filename = os.path.split(filename)
 		shortname, extension = os.path.splitext(filename)
-		moviename = shortname.replace("."," ")
+		moviename = shortname
 		year, torem = self._get_year_from_title(moviename)
 		if year == '':
 			year = self._get_last_four_digit_num(moviename)
 			torem = year	
 		if torem != '':
-			moviename = moviename.replace(torem,' ')
-		moviename = moviename.strip()
+			moviename = self._trunkate_after(moviename, torem)#moviename.replace(torem,' ')
 		moviename = self._clean_up_moviename(moviename)
 		return (moviename, year)
 		

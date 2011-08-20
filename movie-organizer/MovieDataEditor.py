@@ -26,7 +26,7 @@ import FieldDataList
 import ImdbAPI
 import WebCatch
 import os.path
-
+import thread
 
 
 dirName = os.path.dirname(os.path.abspath(__file__))
@@ -155,8 +155,12 @@ class MovieDataEditor(wx.Dialog):
 			label='', 
 			longHelp='', 
 			shortHelp='Get Metadata from IMDB')
-		self.Bind(wx.EVT_TOOL, self.OnGetMovieDataFromWeb,
+		self.Bind(wx.EVT_TOOL, self.OnGetMetadata,
 			id=self.tb_search)
+			
+		self.statusText = wx.StaticText(tb, label="")
+		
+		tb.AddControl(self.statusText)
 
 		tb.Realize()
 		
@@ -215,7 +219,7 @@ class MovieDataEditor(wx.Dialog):
 			self.EndModal(wx.ID_OK)
 		
 		
-	def OnGetMovieDataFromWeb(self, event):
+	def OnGetMetadata(self, event):
 		title = self.txtTitle.GetValue()
 		year = self.txtReleased.GetValue()
 		
@@ -227,22 +231,25 @@ class MovieDataEditor(wx.Dialog):
 			result = dlg.ShowModal()
 			dlg.Destroy()
 			return
-			
-		
-		
-		self.metadatagetter = ImdbAPI.MetaDataGetter(self, title, year, self.postersPath)
-		
-		print "Getting Metadata"
 		
 		self.mainTb.EnableTool(self.tb_search, False)
 		
-		self.metadatagetter.start()
+		self.statusText.SetLabel("Getting metadata from IMDB...")
 		
+		thread.start_new_thread(self._get_metadata, (title, year, self.postersPath))
 		
-	def OnDoneGettingMetadata(self, event):
-		print "Done Getting Metadata"
-			
-		metadata = event.metadata
+	
+	def _get_metadata(self, title, year, postersPath):
+		try:
+			metadata = ImdbAPI.GetMetadata(title, year, postersPath)
+		
+			wx.CallAfter(self._done_get_metadata, metadata)
+		except wx._core.PyDeadObjectError, e:
+			print "dialog closed before thread could complete"
+		
+	
+	def _done_get_metadata(self, metadata):
+		self.statusText.SetLabel("")
 		
 		if metadata != None:
 			print "Success"

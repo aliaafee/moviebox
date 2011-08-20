@@ -1,17 +1,75 @@
 <html>
 <body>
-	<h1>{title}</h1>
-	<img src="{image}" />
-	<ul>
-		<li><b>released :</b> {released} </li>
-		<li><b>runtime :</b> {runtime} </li>
-		<li><b>rated :</b> {rated} </li>
-		<li><b>summary :</b> {summary} </li>
-		<li><b>genres :</b> {genres} </li>
-		<li><b>actors :</b> {actors} </li>
-		<li><b>directors :</b> {directors} </li>
-		<li><b>tags :</b> {tags} </li>
-		<li><b>files :</b> {files} </li>
-	</ul>
+	<h3>{title}</h3>
+	<div>Tags: {tags}</div>
+	<table style="min-width=600px;">
+		<tr>
+			<td style="text-align:top;">
+				Released: 
+			</td>
+			<td width="100%">
+				<b>{released}</b>
+			</td>
+			<td rowspan="8">
+				<img src="{image}" />
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:top;">
+				Runtime: 
+			</td>
+			<td>
+				<b>{runtime}</b>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:top;">
+				Rated: 
+			</td>
+			<td>
+				<b>{rated}</b>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:top;">
+				Genre: 
+			</td>
+			<td>
+				<b>{genres}</b>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:top;">
+				Starring: 
+			</td>
+			<td>
+				<b>{actors}</b>
+			</td>
+		</tr>
+		<tr>
+			<td style="text-align:top;">
+				Directed&nbsp;by: 
+			</td>
+			<td>
+				<b>{directors}</b>
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<hr>
+				{summary}
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				&nbsp;
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3">
+				Files: {files}
+			</td>
+		</tr>
+	</table>
 </body>
 </html>

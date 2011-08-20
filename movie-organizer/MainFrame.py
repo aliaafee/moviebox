@@ -29,6 +29,8 @@ import os
 import os.path
 import subprocess
 import sys
+import thread
+import time
 
 from DbInterface import *
 import MovieDataEditor
@@ -114,20 +116,27 @@ class MainFrame(wx.Frame):
 		self.splitBase = wx.SplitterWindow(self, style=wx.SP_NOBORDER)
 		
 		#Create the treectrl for the filters
-		self.movieFilter = wx.TreeCtrl(self.splitBase, style=wx.TR_DEFAULT_STYLE | wx.SUNKEN_BORDER)
+		self.filterPanel = wx.Panel(self.splitBase)
+		self.movieFilter = wx.TreeCtrl(self.filterPanel, style=wx.TR_DEFAULT_STYLE | wx.SUNKEN_BORDER)
 		self._init_filter()
 		self.movieFilter.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnMovieFilterSelChanged)
+		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.movieFilter, 1, wx.EXPAND | wx.ALL, 1)
+		self.filterPanel.SetSizer(vbox)
+		self.filterPanel.Layout()
 		
 		#the right hand window of the main splitter
 		self.splitRight = wx.SplitterWindow(self.splitBase, style=wx.SP_NOBORDER)
 		
-		self.splitBase.SplitVertically(self.movieFilter, self.splitRight)
+		self.splitBase.SplitVertically(self.filterPanel, self.splitRight)
 		self.splitBase.SetSashPosition(160)
 		
 		#panel to hold the movielist and its toolbar
 		self.movieListPanel = wx.Panel(self.splitRight)
 		
-		self.movieListTb = self._create_movie_list_tb(self.movieListPanel)
+		self.searchBox = wx.SearchCtrl(self.movieListPanel, size=(200,-1), style=wx.TE_PROCESS_ENTER)
+		self.searchBox.ShowSearchButton(False)
+		self.Bind(wx.EVT_TEXT, self.OnMovieListTbSearch, self.searchBox)
 		
 		#the list of movies
 		self.movieList = wx.ListView(self.movieListPanel, size=wx.Size(210,-1), style=wx.LC_REPORT | wx.SUNKEN_BORDER)
@@ -135,7 +144,7 @@ class MainFrame(wx.Frame):
 		self.movieList.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnMovieListRightClick)
 		
 		vbox = wx.BoxSizer(wx.VERTICAL)
-		vbox.Add(self.movieListTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
+		vbox.Add(self.searchBox, 0, wx.ALL | wx.EXPAND, 1)
 		vbox.Add(self.movieList, 1, wx.EXPAND | wx.ALL, 1)
 		self.movieListPanel.SetSizer(vbox)
 		self.movieListPanel.Layout()
@@ -303,34 +312,6 @@ class MainFrame(wx.Frame):
 		return tb
 		
 		
-	def _create_movie_list_tb(self, parent):
-		tb = wx.ToolBar(parent, style=wx.TB_TEXT|wx.TB_NODIVIDER|wx.TB_HORIZONTAL|wx.TB_FLAT)
-		tb.SetToolBitmapSize((21, 21))
-		
-		tb_search = wx.NewId()
-		tb.DoAddTool(
-			bitmap=wx.Bitmap(os.path.join(resDir,'find.png'), wx.BITMAP_TYPE_PNG),
-			#bitmap=wx.ArtProvider.GetBitmap(wx.ART_FIND),
-			bmpDisabled=wx.NullBitmap, 
-			id=tb_search,
-			kind=wx.ITEM_NORMAL, 
-			label='', 
-			longHelp='', 
-			shortHelp='Edit Movie Details')
-		self.Bind(wx.EVT_TOOL, self.OnMovieListTbSearch,
-			id=tb_search)
-		
-		self.searchBox = wx.TextCtrl(tb, size=wx.Size(150,-1))
-		self.searchBox.SetHelpText('Search movies by name')
-		self.searchBox.Bind(wx.EVT_TEXT, self.OnMovieListTbSearch)
-		
-		tb.AddControl(self.searchBox)
-
-		tb.Realize()
-		
-		return tb
-		
-		
 	def _add_filter_group(self,root, groupname, rows):
 		filterGroup = self.movieFilter.AppendItem(root, groupname)
 		for row in rows:
@@ -467,10 +448,10 @@ class MainFrame(wx.Frame):
 			rated = rated, 
 			summary = summary,
 			genres = self._list_to_str(self.db.getGenresByMovieId(self.selectedMovie),u', '),
-			actors = self._list_to_str(self.db.getActorsByMovieId(self.selectedMovie),u', '),
-			directors = self._list_to_str(self.db.getDirectorsByMovieId(self.selectedMovie),u', '),
+			actors = self._list_to_str(self.db.getActorsByMovieId(self.selectedMovie),u'<br>'),
+			directors = self._list_to_str(self.db.getDirectorsByMovieId(self.selectedMovie),u'<br>'),
 			tags = self._list_to_str(self.db.getTagsByMovieId(self.selectedMovie),u', '),
-			files = self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u', ')
+			files = self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u'<br>')
 			)
 		
 		self.movieDetailHtml.SetPage(html)

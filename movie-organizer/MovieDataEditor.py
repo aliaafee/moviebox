@@ -40,8 +40,6 @@ class MovieDataEditor(wx.Dialog):
 		self._init_ctrls(parent)
 		self.postersPath = postersPath
 		
-		self.metadatagetter = None
-		
 	
 	def _init_ctrls(self, parent):
 		wx.Dialog.__init__(self, name='MovieEditor', parent=parent,

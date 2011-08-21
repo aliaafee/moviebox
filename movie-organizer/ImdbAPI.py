@@ -28,24 +28,6 @@ from xml.parsers.expat import ExpatError
 import os.path
 from threading import Thread
 import wx
-import BackgroundJob
-
-
-EVT_DONE_GETMETADATA = BackgroundJob.EVT_DONE_BACKGROUND_JOB
-
-
-class MetaDataGetter(BackgroundJob.BackgroundJob):
-	def __init__(self, parent, title, year, postersPath):	
-		BackgroundJob.BackgroundJob.__init__(self, parent)
-		self.title = title
-		self.year = year
-		self.postersPath = postersPath
-		self.metadata = None
-		
-	def run(self):
-		self.metadata = GetMetadata(self.title, self.year, self.postersPath)
-		self.donejob(metadata=self.metadata)
-
 
 def _comma_to_list(valuesString):
 	values = []

@@ -1,17 +1,24 @@
 <html>
 <body>
 	<h3>{title}</h3>
-	<div>Tags: {tags}</div>
 	<table style="min-width=600px;">
 		<tr>
-			<td style="text-align:top;">
-				Released: 
+			<td>
+				Tags:
 			</td>
 			<td width="100%">
-				<b>{released}</b>
+				<b>{tags}</b>
 			</td>
-			<td rowspan="8">
+			<td rowspan="9">
 				<img src="{image}" />
+			</td>
+		</tr>
+		<tr>
+			<td>
+				Released:
+			</td>
+			<td>
+				<b>{released}</b>
 			</td>
 		</tr>
 		<tr>
@@ -65,11 +72,8 @@
 				&nbsp;
 			</td>
 		</tr>
-		<tr>
-			<td colspan="3">
-				Files: {files}
-			</td>
-		</tr>
 	</table>
+	<div><b>Files</b></div>
+	<div>{files}</div>
 </body>
 </html>

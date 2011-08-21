@@ -451,7 +451,8 @@ class MainFrame(wx.Frame):
 			actors = self._list_to_str(self.db.getActorsByMovieId(self.selectedMovie),u'<br>'),
 			directors = self._list_to_str(self.db.getDirectorsByMovieId(self.selectedMovie),u'<br>'),
 			tags = self._list_to_str(self.db.getTagsByMovieId(self.selectedMovie),u', '),
-			files = self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u'<br>')
+			files = "<ul><li>{0}</li></ul>".format(
+				self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u'</li><li>'))
 			)
 		
 		self.movieDetailHtml.SetPage(html)

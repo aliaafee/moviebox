@@ -25,6 +25,8 @@ import MainFrame
 import os
 import sys
 import getopt
+import time
+import MediaServer
 
 class MovieOrganizer(wx.App):
 	def __init__(self, parent, library, player=''):
@@ -39,13 +41,17 @@ class MovieOrganizer(wx.App):
 		return True
 		
 		
-def usage():
+def license():
 	print "Portable Movie Organizer"
 	print "------------------------"
 	print "Copyright (C) 2010 Ali Aafee"
 	print "This program comes with ABSOLUTELY NO WARRANTY"
 	print "This is free software, and you are welcome to redistribute it"
 	print "under certain conditions. See license.txt for details"
+		
+		
+def usage():
+	license()
 	print " "
 	print "Usage:"
 	print "    -h, --help"
@@ -53,24 +59,65 @@ def usage():
 	print " "
 	print "    -l, --library"
 	print "       Set the location of the library"
-	print "       If not given a dialog will appear requseting it"
+	print "       If not given a dialog will appear reqeseting it"
 	print " "
 	print "    -p, --player"
 	print "         The player to use (optional)"
 	print " "
+	print "    -x, --headless"
+	print "         Run with web interface. (optional) "
+	print "         Arguments are interface & port (xxx.xxx.xxx:0000)"
+	print " "
+	
+	
+def runheadless(address, library):
+	license()
+	print " "
+	print "Running with web interface."
+	print "Warning: This feature is experimental"
+	print ""
+	
+	if address == '' or library == '':
+		print "The address and/or library path are invalid"
+		sys.exit(2)
+	
+	address = address.partition(':')
+	ip = address[0]
+	try:
+		port = int(address[2])
+	except ValueError:
+		print "Bad port '{0}'".format(address[2])
+		sys.exit(2)
+	
+	server = MediaServer.MediaServer((ip, port), library)
+	server.start()
+	
+	print "Server started at {0}:{1}. Ctrl-C to stop".format(ip, port)
+	print ""
+	
+	try:
+		while not server._stopped:
+			time.sleep(1)
+	except KeyboardInterrupt:
+		print ""
+		server.stop()
+
+	sys.exit(2)
 		
 		
 def main(argv):
 	library = ''
 	
 	try:
-		opts, args = getopt.getopt(argv, "hl:p:", ["help", "library=","player="])
+		opts, args = getopt.getopt(argv, "hl:p:x:", ["help", "library=","player=","headless="])
 	except getopt.GetoptError:
 		usage()
 		sys.exit(2)
 		
 	library = ''
 	player = ''
+	headless = False
+	address = ''
 		
 	for opt, arg in opts:
 		if opt in ("-h", "--help"):
@@ -80,13 +127,15 @@ def main(argv):
 			library = arg
 		elif opt in ("-p", "--player"):
 			player = arg
+		elif opt in ("-x", "--headless"):
+			address = arg
+			headless = True
 			
-	#if library == '':
-	#	usage()
-	#	sys.exit(2)
-	
-	app = MovieOrganizer(0, library, player)
-	app.MainLoop()
+	if headless:
+		runheadless(address, library)
+	else:
+		app = MovieOrganizer(0, library, player)
+		app.MainLoop()
 	
 	
 if __name__ == '__main__':

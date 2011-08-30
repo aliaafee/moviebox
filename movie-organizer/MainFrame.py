@@ -669,9 +669,9 @@ class MainFrame(wx.Frame):
 			if len(command) > 1:
 				pid = subprocess.Popen(command).pid
 			else:
-				"No files to play"
+				print "No files to play"
 		else:
-			"No movie selected"
+			print "No movie selected"
 		
 			
 	def OnMovieListTbSearch(self, event):

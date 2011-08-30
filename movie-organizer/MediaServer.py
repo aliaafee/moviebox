@@ -17,11 +17,12 @@ resDir = os.path.join(dirName, 'res')
 
 
 class MediaServer(threading.Thread):
-	def __init__(self, address, libraryPath):
+	def __init__(self, address, libraryPath, vlc="vlc"):
 		self.libraryPath = libraryPath
 		self._address = address
 		self._started = False
 		self._stopped = False
+		self._vlc = vlc
 		self._vlc_process = None
 		self._httpd = None
 		
@@ -65,6 +66,11 @@ class MediaServer(threading.Thread):
 		except OSError, e:
 			print "Cannot access the library"
 			return False
+			
+			
+	def _is_valid_vlc(self):
+		output = subprocess.Popen([self._vlc, "--version"], stdout=PIPE).communicate()[0]
+		print output
 			
 		
 
@@ -217,6 +223,9 @@ class MediaServer(threading.Thread):
 				
 				
 		def startStream(url):
+			if self._is_valid_vlc():
+				return "VLC version is too old, need atleast VLC 1.2"
+			
 			url = urlparse.urlparse(url)
 			
 			path = url.path
@@ -240,7 +249,7 @@ class MediaServer(threading.Thread):
 			if len(absfiles) == 0:
 				return "movie got no files"
 				
-			command = ['cvlc']
+			command = [self._vlc]
 			for filename in absfiles:
 				command.append('{0}'.format(filename))
 			command.append('vlc://quit')

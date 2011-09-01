@@ -10,6 +10,8 @@ import urllib
 import subprocess
 import signal
 import time
+from distutils.version import StrictVersion
+
 
 dirName = os.path.dirname(os.path.abspath(__file__))
 dirName, fileName = os.path.split(dirName)
@@ -69,9 +71,11 @@ class MediaServer(threading.Thread):
 			
 			
 	def _is_valid_vlc(self):
-		output = subprocess.Popen([self._vlc, "--version"], stdout=PIPE).communicate()[0]
+		output = subprocess.Popen(
+			[self._vlc, "--version"], 
+			stdout=subprocess.PIPE).communicate()[0]
 		print output
-			
+		return True
 		
 
 	def run(self):
@@ -223,8 +227,8 @@ class MediaServer(threading.Thread):
 				
 				
 		def startStream(url):
-			if self._is_valid_vlc():
-				return "VLC version is too old, need atleast VLC 1.2"
+			#if not self._is_valid_vlc():
+			#	return "VLC version is too old, need atleast VLC 1.2"
 			
 			url = urlparse.urlparse(url)
 			
@@ -253,10 +257,12 @@ class MediaServer(threading.Thread):
 			for filename in absfiles:
 				command.append('{0}'.format(filename))
 			command.append('vlc://quit')
+			command.append('-I')
+			command.append('Dummy')
 			command.append('--sout')
 			
-			#sout = r"#transcode{threads=2,fps=25,vcodec=h264,vb=512,venc=x264{aud,profile=baseline,level=30,keyint=30,bframes=0,ref=1,nocabac},acodec=mp3,ab=96}:duplicate{dst=std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
-			sout = r"#transcode{vcodec=h264,soverlay,acodec=mp3,channels=2,venc=x264{profile=baseline,level=2.2,keyint=45,bframes=0,ref=1,nocabac},width=500,fps=25,vb=256,ab=40}:std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
+			sout = r"#transcode{threads=2,fps=25,vcodec=h264,vb=512,venc=x264{aud,profile=baseline,level=30,keyint=30,bframes=0,ref=1,nocabac},acodec=mp3,ab=96}:duplicate{dst=std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
+			#sout = r"#transcode{vcodec=h264,soverlay,acodec=mp3,channels=2,venc=x264{profile=baseline,level=2.2,keyint=45,bframes=0,ref=1,nocabac},width=500,fps=25,vb=256,ab=40}:std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
 			
 			indexfile = os.path.join(self.streamCatchPath, '{0}-stream.m3u8'.format(movieid))
 			indexurl = '/streamfiles/{0}-stream-########.ts'.format(movieid)
@@ -369,6 +375,8 @@ class MediaServer(threading.Thread):
 					self.send_error(404,'File Not Found: {0}'.format(self.path))
 		
 		self._httpd = HTTPServer(self._address, MediaServerReqHandler)
+		
+		print "Started"
 		
 		self._httpd.serve_forever()
 		

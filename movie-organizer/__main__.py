@@ -88,12 +88,12 @@ def runheadless(address, library):
 	except ValueError:
 		print "Bad port '{0}'".format(address[2])
 		sys.exit(2)
+		
+	print "Starting Server at {0}:{1}. Ctrl-C to stop".format(ip, port)
+	print ""
 	
 	server = MediaServer.MediaServer((ip, port), library)
 	server.start()
-	
-	print "Server started at {0}:{1}. Ctrl-C to stop".format(ip, port)
-	print ""
 	
 	try:
 		while not server._stopped:

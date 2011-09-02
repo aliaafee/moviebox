@@ -527,7 +527,7 @@ class MainFrame(wx.Frame):
 					self.UpdateDisplay()
 				else:
 					msg = wx.MessageDialog(self, 
-						'An error occured while adding the movie', 
+						'An error occurred while adding the movie', 
 						'Error Adding Movie Metadata', wx.OK|wx.ICON_INFORMATION)
 					msg.ShowModal()
 					msg.Destroy()
@@ -591,9 +591,9 @@ class MainFrame(wx.Frame):
 						print u"Movie '{0}' Updated".format(data['title'])
 						self.UpdateDisplay()
 					else:
-						print u"Cannont Update Movie '{0}'. An Error Occured".format(data['title'])
+						print u"Cannot Update Movie '{0}'. An Error Occurred".format(data['title'])
 						msg = wx.MessageDialog(self, 
-							u"Cannont Update Movie '{0}'. An Error Occured".format(data['title']), 
+							u"Cannot Update Movie '{0}'. An Error Occurred".format(data['title']), 
 							'Error Editing Movie Metadata', wx.OK|wx.ICON_INFORMATION)
 						msg.ShowModal()
 						msg.Destroy()

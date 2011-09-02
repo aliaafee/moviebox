@@ -59,7 +59,7 @@ def usage():
 	print " "
 	print "    -l, --library"
 	print "       Set the location of the library"
-	print "       If not given a dialog will appear reqeseting it"
+	print "       If not given a dialog will appear requesting it"
 	print " "
 	print "    -p, --player"
 	print "         The player to use (optional)"
@@ -74,7 +74,11 @@ def runheadless(address, library):
 	license()
 	print " "
 	print "Running with web interface."
-	print "Warning: This feature is experimental"
+	print "Warning: This feature is EXPERIMENTAL"
+	print " "
+	print "Only streaming to iOS device is supported, and requires vlc >= 1.2.0"
+	print "Note: Your path/to/library/metadata/streamcatch may become huge, so it"
+	print "      may be wise to delete it once in a while"
 	print ""
 	
 	if address == '' or library == '':

@@ -5,12 +5,10 @@ import os.path
 import urlparse
 from BaseHTTPServer import HTTPServer
 from BaseHTTPServer import BaseHTTPRequestHandler
-import cgi
 import urllib
-import subprocess
-import signal
 import time
 from distutils.version import StrictVersion
+import vlc
 
 
 dirName = os.path.dirname(os.path.abspath(__file__))
@@ -24,8 +22,8 @@ class MediaServer(threading.Thread):
 		self._address = address
 		self._started = False
 		self._stopped = False
-		self._vlc = vlc
-		self._vlc_process = None
+		self._vlc_instance = None
+		self._vlc_player = None
 		self._httpd = None
 		
 		self.categories = ['genre', 'actor', 'director', 'tag']
@@ -71,11 +69,21 @@ class MediaServer(threading.Thread):
 			
 			
 	def _is_valid_vlc(self):
-		output = subprocess.Popen(
-			[self._vlc, "--version"], 
-			stdout=subprocess.PIPE).communicate()[0]
-		print output
-		return True
+		version = vlc.libvlc_get_version()
+		version = version.partition(' ')[0]
+		version = version.partition('-')[0]
+		
+		try:
+			version_number = StrictVersion(version)
+		except ValueError:
+			return False
+			
+		req_version_number = StrictVersion('1.2.0')
+		
+		if version_number >= req_version_number:
+			return True
+		else:
+			print False
 		
 
 	def run(self):
@@ -83,6 +91,8 @@ class MediaServer(threading.Thread):
 			print "Stopping server..."
 			self._stopped = True
 			return
+			
+		self._vlc_instance = vlc.Instance()
 		
 		
 		def getTemplate(name):
@@ -136,8 +146,9 @@ class MediaServer(threading.Thread):
 					year = row[5]
 					
 					movielist.append(
-						'<li><a href="/detail/{0}">{1} ({2})</a> [<a href="/stream/{0}">play</a>]</li>'.format(
-						movieid, moviename, year))
+						'''<li><a href="/detail/{0}">{1} ({2})</a> 
+							[<a href="/stream/{0}">play</a>]</li>'''.format(
+														movieid, moviename, year))
 				
 			return movielist
 				
@@ -226,9 +237,43 @@ class MediaServer(threading.Thread):
 				return ''
 				
 				
+		def _generate_sout_string(index, index_url, dst):
+			return (
+			"sout="+
+			"#transcode{"+
+				"threads=2," +
+				"fps=25," +
+				"vcodec=h264," +
+				"vb=256," +
+				"width=400," +
+				"venc=x264{" +
+					"aud," +
+					"profile=baseline," +
+					"level=30," +
+					"keyint=30," +
+					"bframes=0," +
+					"ref=1," +
+					"nocabac"
+				"},"
+				"acodec=mp3,"
+				"ab=96,"
+				"audio-sync"
+			"}" +
+			":std{" +
+				"access=livehttp{" +
+					"seglen=10," +
+					"index=" + index + ","
+					"index-url=" + index_url + ","
+				"}" +
+				"mux=ts{use-key-frames}," +
+				"dst=\"" + dst + "\"" +
+			"}"
+			)
+				
+				
 		def startStream(url):
-			#if not self._is_valid_vlc():
-			#	return "VLC version is too old, need atleast VLC 1.2"
+			if not self._is_valid_vlc():
+				return "VLC version is too old, need at least VLC 1.2.0"
 			
 			url = urlparse.urlparse(url)
 			
@@ -251,36 +296,32 @@ class MediaServer(threading.Thread):
 					absfiles.append(absfilename)
 					
 			if len(absfiles) == 0:
-				return "movie got no files"
+				return "Movie has no files"
 				
-			command = [self._vlc]
-			for filename in absfiles:
-				command.append('{0}'.format(filename))
-			command.append('vlc://quit')
-			command.append('-I')
-			command.append('Dummy')
-			command.append('--sout')
+			streamDir = os.path.join(self.streamCatchPath, movieid)
 			
-			sout = r"#transcode{threads=2,fps=25,vcodec=h264,vb=512,venc=x264{aud,profile=baseline,level=30,keyint=30,bframes=0,ref=1,nocabac},acodec=mp3,ab=96}:duplicate{dst=std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
-			#sout = r"#transcode{vcodec=h264,soverlay,acodec=mp3,channels=2,venc=x264{profile=baseline,level=2.2,keyint=45,bframes=0,ref=1,nocabac},width=500,fps=25,vb=256,ab=40}:std{access=livehttp{seglen=10,index={index},index-url={indexurl}},mux=ts{use-key-frames},dst={dst}}}"
-			
-			indexfile = os.path.join(self.streamCatchPath, '{0}-stream.m3u8'.format(movieid))
-			indexurl = '/streamfiles/{0}-stream-########.ts'.format(movieid)
-			dst = os.path.join(self.streamCatchPath, '{0}-stream-########.ts'.format(movieid))
-			
-			sout = sout.replace('{index}'		, indexfile)
-			sout = sout.replace('{indexurl}'	, indexurl)
-			sout = sout.replace('{dst}'			, dst)
-			
-			command.append(sout)
-			
-			if self._vlc_process != None:
-				"Killing existing process..."
-				self._vlc_process.terminate()
+			try:
+				if not os.path.isdir(streamDir):
+					os.mkdir(streamDir)
+			except OSError:
+				return "Cannot access the stream catch location"
 				
-			self._vlc_process = subprocess.Popen(command)
+			sout = _generate_sout_string(
+				index     = os.path.join(streamDir, 'stream.m3u8'),
+				index_url = '/streamfiles/{0}/stream-########.ts'.format(movieid),
+				dst       = os.path.join(streamDir, 'stream-########.ts'))
+											
+			self.media = self._vlc_instance.media_new('file://'+absfiles[0], sout)
 			
-			print "Vlc service started with pid {0}".format(self._vlc_process.pid)
+			if self._vlc_player != None:
+				self._vlc_player.stop()
+				self._vlc_player.release()
+				
+			self._vlc_player = self._vlc_instance.media_player_new()
+				
+			self._vlc_player.set_media(self.media)
+			
+			self._vlc_player.play()
 			
 			page = getTemplate('web-player')
 			
@@ -290,10 +331,8 @@ class MediaServer(threading.Thread):
 			
 			return page.format(
 				movietitle=title,
-				moviestream="/streamfiles/{0}-stream.m3u8".format(movieid)
+				moviestream="/streamfiles/{0}/stream.m3u8".format(movieid)
 				)
-			
-			return '<a href="/streamfiles/{0}-stream.m3u8">Play</a>'.format(movieid) + ' '.join(command)
 			
 			
 		def getStreamFile(url):
@@ -301,10 +340,18 @@ class MediaServer(threading.Thread):
 			
 			path = url.path
 			
-			filename = urllib.unquote(path.partition('/streamfiles/')[2])
+			path = urllib.unquote(path.partition('/streamfiles/')[2])
+			
+			path = path.partition('/')
+			
+			movieid = path[0]
+			filename = path[2]
+			
+			filepath = os.path.join(self.streamCatchPath, movieid)
+			filepath = os.path.join(filepath, filename)
 			
 			try:
-				f = open(os.path.join(self.streamCatchPath, filename), 'rb')
+				f = open(filepath, 'rb')
 				data = f.read()
 				return data
 			except IOError:
@@ -385,9 +432,11 @@ class MediaServer(threading.Thread):
 		self._httpd.socket.close()
 		self.db.close()
 		
-		if self._vlc_process != None:
-			print "Killing vlc process..."
-			self._vlc_process.terminate()
+		if self._vlc_player != None:
+			self._vlc_player.stop()
+			self._vlc_player.release()
+			
+		self._vlc_instance.release()
 		
 		self._stopped = True
 		

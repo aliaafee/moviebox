@@ -80,6 +80,10 @@ class MainFrame(wx.Frame):
 				self.postersPath = os.path.join(self.metadataPath, 'posters')
 				if not os.path.isdir(self.postersPath):
 					os.mkdir(self.postersPath)
+					
+				self.catchPath = os.path.join(self.metadataPath, 'catch')
+				if not os.path.isdir(self.catchPath):
+					os.mkdir(self.catchPath)
 				
 				self.db = DbInterface(os.path.join(self.metadataPath,'metadata.db'))
 				
@@ -504,7 +508,7 @@ class MainFrame(wx.Frame):
 		
 		
 	def OnAddMovie(self, event):
-		dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, 'Add Movie to Library')
+		dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, self.catchPath, 'Add Movie to Library')
 		result = dlg.ShowModal()
 		if result == wx.ID_OK:
 			data = dlg.GetData()
@@ -547,7 +551,7 @@ class MainFrame(wx.Frame):
 		if result == wx.ID_OK:
 			print "Added a scanned movie"
 		'''
-		dlg = LibraryScanner.LibraryScanner(self, self.libraryPath ,self.db, self.postersPath)
+		dlg = LibraryScanner.LibraryScanner(self, self.libraryPath ,self.db, self.postersPath, self.catchPath)
 		dlg.ShowModal()
 		dlg.Destroy()
 		self.UpdateDisplay()
@@ -570,7 +574,7 @@ class MainFrame(wx.Frame):
 			data['directors'] = self.db.getDirectorsByMovieId(self.selectedMovie)
 			data['files'] = self.db.getFilesByMovieId(self.selectedMovie)
 		
-			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath,
+			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, self.catchPath,
 					u'Edit Metadata: {0}'.format(data['title']))
 			dlg.SetData(data)
 			result = dlg.ShowModal()

@@ -26,18 +26,18 @@ import os
 
 dirName = os.path.dirname(os.path.abspath(__file__))
 dirName, fileName = os.path.split(dirName)
-catchDir = os.path.join(dirName, 'catch')
+fallBackCatchPath = os.path.join(dirName, 'catch')
 
 
-def get(url):
-	if not os.path.isdir(catchDir):
-		os.mkdir(catchDir)
+def get(url, catchPath=fallBackCatchPath):
+	if not os.path.isdir(catchPath):
+		os.mkdir(catchPath)
 		
-	dataDir = os.path.join(catchDir, 'data')
+	dataDir = os.path.join(catchPath, 'data')
 	if not os.path.isdir(dataDir):
 		os.mkdir(dataDir)
 		
-	cathDbPath = os.path.join(catchDir, 'catch.db')
+	cathDbPath = os.path.join(catchPath, 'catch.db')
 	
 	conn = sqlite3.connect(cathDbPath)
 	

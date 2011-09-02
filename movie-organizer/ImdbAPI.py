@@ -65,9 +65,9 @@ def _fix_poster_name(name):
 	return name
 	
 	
-def _download_poster(poster, posterName, postersPath):
+def _download_poster(poster, posterName, postersPath, catchPath):
 	if poster != '':
-		poster = WebCatch.get(poster)
+		poster = WebCatch.get(poster, catchPath)
 		
 		posterName = _get_unique_filename(postersPath, _fix_poster_name(posterName), '.jpg')
 		
@@ -82,7 +82,7 @@ def _download_poster(poster, posterName, postersPath):
 		return ''
 
 
-def GetMetadata(title, year, postersPath):
+def GetMetadata(title, year, postersPath, catchPath):
 	options = {
 		't': title,
 		'y': year,
@@ -94,7 +94,7 @@ def GetMetadata(title, year, postersPath):
 	
 	print(url)
 	
-	xmlString = WebCatch.get(url)
+	xmlString = WebCatch.get(url, catchPath)
 	print 'got xml'
 	
 	if xmlString == '':
@@ -156,7 +156,7 @@ def GetMetadata(title, year, postersPath):
 			elif key == u'director':
 				result['directors'] = _comma_to_list(value)
 				
-		result['image'] = _download_poster(result['image'], result['title'], postersPath)
+		result['image'] = _download_poster(result['image'], result['title'], postersPath, catchPath)
 		print 'got poster'
 		
 		return result

@@ -30,9 +30,10 @@ import thread
 
 
 class LibraryScanner(wx.Dialog):
-	def __init__(self, parent, libraryLocation, metadatadb, postersPath, title='Scan Library'):
+	def __init__(self, parent, libraryLocation, metadatadb, postersPath, catchPath, title='Scan Library'):
 		self.libraryLocation = libraryLocation
 		self.postersPath = postersPath
+		self.catchPath = catchPath
 		
 		self.validFileTypes = ['.avi', '.mkv', '.mp4', '.m4v', '.vob', '.divx', '.mpg', '.dat']
 		
@@ -229,7 +230,7 @@ class LibraryScanner(wx.Dialog):
 		title, year = self._get_title_and_year_from_filename(shortFileName)
 		
 		if title != '':
-			metadata = ImdbAPI.GetMetadata(title, year, self.postersPath)
+			metadata = ImdbAPI.GetMetadata(title, year, self.postersPath, self.catchPath)
 		
 			if metadata != None:
 				if metadata['title'] != '':

@@ -22,7 +22,6 @@
 import wx
 import FieldDataList
 import ImdbAPI
-import WebCatch
 import os.path
 import thread
 
@@ -32,11 +31,13 @@ dirName, fileName = os.path.split(dirName)
 resDir = os.path.join(dirName, 'res')
 
 class MovieDataEditor(wx.Dialog):
-	def __init__(self, parent, postersPath, title='Edit Movie Metadata'):
+	def __init__(self, parent, postersPath, catchPath, title='Edit Movie Metadata'):
 		self.title = title
+		self.postersPath = postersPath
+		self.catchPath = catchPath
 		
 		self._init_ctrls(parent)
-		self.postersPath = postersPath
+		
 		
 	
 	def _init_ctrls(self, parent):
@@ -231,12 +232,12 @@ class MovieDataEditor(wx.Dialog):
 		
 		self.statusText.SetLabel("Getting metadata from IMDB...")
 		
-		thread.start_new_thread(self._get_metadata, (title, year, self.postersPath))
+		thread.start_new_thread(self._get_metadata, (title, year, self.postersPath, self.catchPath))
 		
 	
-	def _get_metadata(self, title, year, postersPath):
+	def _get_metadata(self, title, year, postersPath, catchPath):
 		try:
-			metadata = ImdbAPI.GetMetadata(title, year, postersPath)
+			metadata = ImdbAPI.GetMetadata(title, year, postersPath, catchPath)
 		
 			wx.CallAfter(self._done_get_metadata, metadata)
 		except wx._core.PyDeadObjectError, e:

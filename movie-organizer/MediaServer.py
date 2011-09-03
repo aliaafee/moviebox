@@ -332,15 +332,18 @@ class MediaServer(threading.Thread):
 				index_url = '/streamfiles/{0}/stream-########.ts'.format(movieid),
 				dst       = os.path.join(streamDir, 'stream-########.ts'))
 											
-			self.media = self._vlc_instance.media_new('file://'+absfiles[0], sout)
-			
 			if self._vlc_player != None:
 				self._vlc_player.stop()
 				self._vlc_player.release()
 				
-			self._vlc_player = self._vlc_instance.media_player_new()
-				
-			self._vlc_player.set_media(self.media)
+			self._vlc_player = self._vlc_instance.media_list_player_new()
+			self._vlc_media_list = self._vlc_instance.media_list_new()
+			
+			for absfile in absfiles:
+				self._vlc_media_list.add_media(
+					self._vlc_instance.media_new('file://'+absfile, sout))
+					
+			self._vlc_player.set_media_list(self._vlc_media_list)
 			
 			self._vlc_player.play()
 			

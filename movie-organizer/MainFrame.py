@@ -30,6 +30,8 @@ import sys
 import thread
 import time
 
+import vlc
+
 from DbInterface import *
 import MovieDataEditor
 import LibraryScanner
@@ -47,7 +49,7 @@ def create(parent, library, player=''):
 class MainFrame(wx.Frame):
 	def __init__(self, parent, library, player=''):
 		self.libraryPath = library
-		self.player = player
+		self.VlcPlayer = player
 		
 		self.selectedMovie = None
 		
@@ -159,17 +161,51 @@ class MainFrame(wx.Frame):
 		#htmlwindow showing movie details
 		self.movieDetailHtml = wx.html.HtmlWindow(self.movieDetail, style=wx.SUNKEN_BORDER)
 		
+		#the player window
+		self.player = wx.Panel(self.movieDetail)
+		
+		self.videopanel = wx.Panel(self.player)
+		self.videopanel.SetBackgroundColour(wx.BLACK)
+		
+		#self.playerctrlpanel = wx.Panel(self.player, -1 )
+		
+		#self.btnPlay = wx.Button(self.playerctrlpanel, label="Play")
+		#self.btnPause = wx.Button(self.playerctrlpanel, label="Pause")
+		#self.btnStop = wx.Button(self.playerctrlpanel, label="Stop")
+		
+		#hbox = wx.BoxSizer(wx.HORIZONTAL)
+		#hbox.Add(self.btnPlay, flag=wx.RIGHT, border=5)
+		#hbox.Add(self.btnPause)
+		#hbox.Add(self.btnStop)
+		#self.playerctrlpanel.SetSizer(hbox)
+		
+		
+		vbox = wx.BoxSizer(wx.VERTICAL)
+		vbox.Add(self.videopanel, 1, wx.EXPAND | wx.ALL, 1)
+		#vbox.Add(self.playerctrlpanel, 0, wx.EXPAND | wx.ALL, 0)
+		self.player.SetSizer(vbox)
+		
+		self.player.Show(False)
+		
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(self.movieDetailTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
 		vbox.Add(self.movieDetailHtml, 1, wx.EXPAND | wx.ALL, 1)
+		vbox.Add(self.player, 1, wx.EXPAND | wx.ALL, 1)
+		
 		self.movieDetail.SetSizer(vbox)
 		self.movieDetail.Layout()
 		
 		self.splitRight.SplitVertically(self.movieListPanel, self.movieDetail)
 		self.splitRight.SetSashPosition(210)
 		
+		self._init_vlc()
 		self._init_movielist()
 		self._display_details()
+		
+		
+	def _init_vlc(self):
+		self.Instance = vlc.Instance()
+		self.VlcPlayer = self.Instance.media_player_new()
 		
 		
 	def _init_menus(self):
@@ -293,7 +329,7 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_TOOL, self.OnRemoveTag,
 			id=tb_remove_tag)
 			
-		if self.player != '':
+		if self.VlcPlayer != '':
 			tb.AddSeparator()
 			
 			tb_play = wx.NewId()
@@ -307,6 +343,21 @@ class MainFrame(wx.Frame):
 				longHelp='', 
 				shortHelp='Play movie using default external player')
 			self.Bind(wx.EVT_TOOL, self.OnPlayMovie,
+				id=tb_play)
+		else:
+			tb.AddSeparator()
+			
+			tb_play = wx.NewId()
+			tb.DoAddTool(
+				bitmap=wx.Bitmap(os.path.join(resDir,'play.png'), wx.BITMAP_TYPE_PNG),
+		                    #bitmap=wx.ArtProvider.GetBitmap(wx.ART_DEL_BOOKMARK),
+				bmpDisabled=wx.NullBitmap, 
+				id=tb_play,
+				kind=wx.ITEM_NORMAL, 
+				label='', 
+				longHelp='', 
+				shortHelp='Play movie with inbuilt player')
+			self.Bind(wx.EVT_TOOL, self.OnPlayMovieInbuilt,
 				id=tb_play)
 				
 		tb.Realize()
@@ -659,12 +710,12 @@ class MainFrame(wx.Frame):
 			
 	
 	def OnPlayMovie(self, event):
-		if self.player == '':
+		if self.VlcPlayer == '':
 			return
 			
 		if self.selectedMovie != None:
 			dbFiles = self.db.getFilesByMovieId(self.selectedMovie)
-			command = [self.player]
+			command = [self.VlcPlayer]
 			for row in dbFiles:
 				fileid, filename = row
 				filename = os.path.join(self.libraryPath, filename)
@@ -676,6 +727,31 @@ class MainFrame(wx.Frame):
 				print "No files to play"
 		else:
 			print "No movie selected"
+			
+			
+	def OnPlayMovieInbuilt(self, event):
+		files = self.db.getFilesByMovieId(self.selectedMovie)
+			
+		absfiles = []
+		
+		for row in files:
+			fileid, filename = row
+			absfilename = os.path.join(self.libraryPath, filename)
+			print absfilename
+			if os.path.isfile(absfilename):
+				absfiles.append('file://' + absfilename)
+				
+		if len(absfiles) > 0:
+			self.player.Show(True)
+			self.movieDetailHtml.Show(False)
+			self.movieDetail.Layout()
+			
+			self.Media = self.Instance.media_new(absfiles[0])
+			self.VlcPlayer.set_media(self.Media)
+			self.VlcPlayer.set_xwindow(self.videopanel.GetHandle())
+ 
+			if self.VlcPlayer.play() == -1:
+				print "cant play"
 		
 			
 	def OnMovieListTbSearch(self, event):
@@ -699,6 +775,11 @@ class MainFrame(wx.Frame):
 	def OnMovieListSelected(self, event):
 		count = self.movieList.GetSelectedItemCount()
 		if count == 1:
+			self.VlcPlayer.stop()
+			self.player.Show(False)
+			self.movieDetailHtml.Show(True)
+			self.movieDetail.Layout()
+			
 			index = event.GetIndex()
 			self.selectedMovie = int(self.movieList.GetItemText(index))
 			self._display_details()

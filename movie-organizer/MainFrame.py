@@ -64,6 +64,8 @@ class MainFrame(wx.Frame):
 		
 		self.movieTitleSearch = ''
 				
+		self.Playing = False
+		self.Fullscreen = False
 		
 		self._init_ctrls(parent)
 		
@@ -167,36 +169,66 @@ class MainFrame(wx.Frame):
 		self.videopanel = wx.Panel(self.player)
 		self.videopanel.SetBackgroundColour(wx.BLACK)
 		
-		#self.playerctrlpanel = wx.Panel(self.player, -1 )
+		self.playerctrlpanel = wx.Panel(self.player, -1 )
 		
-		#self.btnPlay = wx.Button(self.playerctrlpanel, label="Play")
-		#self.btnPause = wx.Button(self.playerctrlpanel, label="Pause")
-		#self.btnStop = wx.Button(self.playerctrlpanel, label="Stop")
+		self.timeslider = wx.Slider(self.playerctrlpanel, -1, 0, 0, 1000)
+		self.timeslider.SetRange(0, 1000)
+		self.btnPlay = wx.Button(self.playerctrlpanel, label="Play")
+		self.btnStop = wx.Button(self.playerctrlpanel, label="Stop")
+		self.btnFullscreen = wx.Button(self.playerctrlpanel, label="Fullscreen")
+		self.btnVolume = wx.Button(self.playerctrlpanel, label="Mute")
+		self.volslider = wx.Slider(self.playerctrlpanel, -1, 0, 0, 100, size=(100, -1))
+		self.playerTimer = wx.Timer(self)
 		
-		#hbox = wx.BoxSizer(wx.HORIZONTAL)
-		#hbox.Add(self.btnPlay, flag=wx.RIGHT, border=5)
-		#hbox.Add(self.btnPause)
-		#hbox.Add(self.btnStop)
-		#self.playerctrlpanel.SetSizer(hbox)
+		#event bindings
 		
+		self.Bind(wx.EVT_BUTTON, self.OnPlayerPlay, self.btnPlay)
+		self.Bind(wx.EVT_BUTTON, self.OnPlayerStop, self.btnStop)
+		self.Bind(wx.EVT_BUTTON, self.OnPlayerToggleVolume, self.btnVolume)
+		self.Bind(wx.EVT_BUTTON, self.OnPlayerFullScreen, self.btnFullscreen)
+		self.Bind(wx.EVT_SLIDER, self.OnPlayerSetVolume, self.volslider)
+		self.Bind(wx.EVT_SLIDER, self.OnPlayerSetTime, self.timeslider)
+		self.Bind(wx.EVT_KEY_UP, self.onKeyPress)
+		self.Bind(wx.EVT_TIMER, self.OnPlayerTimer, self.playerTimer)
+		
+		box1 = wx.BoxSizer(wx.HORIZONTAL)
+		box2 = wx.BoxSizer(wx.HORIZONTAL)
+		ctrlbox = wx.BoxSizer(wx.VERTICAL)
+		
+		box1.Add(self.timeslider, 1)
+		box2.Add(self.btnPlay, flag=wx.RIGHT, border=5)
+		#box2.Add(self.btnPause)
+		box2.Add(self.btnStop, flag=wx.RIGHT, border=5)
+		box2.Add(self.btnFullscreen, flag=wx.RIGHT, border=5)
+		box2.Add((-1, -1), 1)
+		box2.Add(self.btnVolume)
+		box2.Add(self.volslider, flag=wx.TOP | wx.LEFT, border=5)
+		ctrlbox.Add(box1, flag=wx.EXPAND | wx.BOTTOM, border=10)
+		ctrlbox.Add(box2, 1, wx.EXPAND)
+		
+		self.playerctrlpanel.SetSizer(ctrlbox)
 		
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(self.videopanel, 1, wx.EXPAND | wx.ALL, 1)
-		#vbox.Add(self.playerctrlpanel, 0, wx.EXPAND | wx.ALL, 0)
+		vbox.Add(self.playerctrlpanel, 0, wx.EXPAND | wx.ALL, 0)
 		self.player.SetSizer(vbox)
 		
 		self.player.Show(False)
 		
+		#finish off the layouts
+		
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		vbox.Add(self.movieDetailTb, 0, wx.ALL | wx.ALIGN_LEFT | wx.EXPAND, 0 )
-		vbox.Add(self.movieDetailHtml, 1, wx.EXPAND | wx.ALL, 1)
-		vbox.Add(self.player, 1, wx.EXPAND | wx.ALL, 1)
+		vbox.Add(self.movieDetailHtml, 1, wx.EXPAND | wx.ALL, 0)
+		vbox.Add(self.player, 1, wx.EXPAND | wx.ALL, 0)
 		
 		self.movieDetail.SetSizer(vbox)
 		self.movieDetail.Layout()
 		
 		self.splitRight.SplitVertically(self.movieListPanel, self.movieDetail)
 		self.splitRight.SetSashPosition(210)
+		
+		#do other inits
 		
 		self._init_vlc()
 		self._init_movielist()
@@ -750,8 +782,111 @@ class MainFrame(wx.Frame):
 			self.VlcPlayer.set_media(self.Media)
 			self.VlcPlayer.set_xwindow(self.videopanel.GetHandle())
  
+			self.OnPlayerPlay(None)
+				
+
+	def OnPlayerPlay(self, event):
+		if self.Playing == False:
 			if self.VlcPlayer.play() == -1:
 				print "cant play"
+			else:
+				self.VlcPlayer.audio_set_mute(False)
+				self.playerTimer.Start()
+				self.Playing = True
+				self.volslider.SetValue(self.VlcPlayer.audio_get_volume() / 2)
+				self.btnPlay.SetLabel("Pause")
+		else:
+			self.VlcPlayer.pause()
+			self.playerTimer.Stop()
+			self.Playing = False
+			self.btnPlay.SetLabel("Play")
+
+	
+	def OnPlayerStop(self, event):
+		self.VlcPlayer.stop()
+		self.Playing = False
+		# reset the time slider
+		self.timeslider.SetValue(0)
+		self.playerTimer.Stop()
+		self.btnPlay.SetLabel("Play")
+		
+	
+	def OnPlayerToggleVolume(self, event):
+		is_mute = self.VlcPlayer.audio_get_mute()
+		
+		self.VlcPlayer.audio_set_mute(not is_mute)
+		
+		self.volslider.SetValue(self.VlcPlayer.audio_get_volume() / 2)
+		
+		if self.VlcPlayer.audio_get_mute():
+			self.btnVolume.SetLabel("UnMute")
+		else:
+			self.btnVolume.SetLabel("Mute")
+		
+	def _fullscreen_on(self):
+		self.splitBaseSashPostition = self.splitBase.GetSashPosition()
+		self.splitBase.SetSashPosition(1)
+		self.splitBaseSashSize = self.splitBase.GetSashSize()
+		self.splitBase.SetSashSize(0)
+		self.splitRightSashPostition = self.splitRight.GetSashPosition()
+		self.splitRight.SetSashPosition(1)
+		self.splitRightSashSize = self.splitRight.GetSashSize()
+		self.splitRight.SetSashSize(0)
+		self.filterPanel.Show(False)
+		self.movieListPanel.Show(False)
+		self.movieDetailTb.Show(False)
+		self.movieDetail.Layout()
+		self.ShowFullScreen(True)
+		
+	
+	def _fullscreen_off(self):
+		self.splitBase.SetSashPosition(self.splitBaseSashPostition)
+		self.splitBase.SetSashSize(self.splitBaseSashSize)
+		self.splitRight.SetSashPosition(self.splitRightSashPostition)
+		self.splitRight.SetSashSize(self.splitRightSashSize)
+		self.filterPanel.Show(True)
+		self.movieListPanel.Show(True)
+		self.movieDetailTb.Show(True)
+		self.movieDetail.Layout()
+		self.ShowFullScreen(False)
+		
+	
+	def OnPlayerFullScreen(self, event):
+		if self.Fullscreen == True:
+			self._fullscreen_off()
+			self.Fullscreen = False
+		else:
+			self._fullscreen_on()
+			self.Fullscreen = True
+			
+			
+	def OnPlayerSetVolume(self, event):
+		volume = self.volslider.GetValue() * 2
+		
+		if self.VlcPlayer.audio_set_volume(volume) == -1:
+			print "Cannot set volume"
+			
+			
+	def OnPlayerSetTime(self, event):
+		time = self.timeslider.GetValue()
+		
+		if self.VlcPlayer.set_time(time) == -1:
+			print "Cannot set time"
+		
+		
+	def OnPlayerTimer(self, event):
+		length = self.VlcPlayer.get_length()
+		self.timeslider.SetRange(-1, length)
+        
+		time = self.VlcPlayer.get_time()
+		self.timeslider.SetValue(time)
+        
+	
+	def onKeyPress(self, event):
+		if event.GetKeyCode() == wx.WXK_ESCAPE:
+			if self.Fullscreen == True:
+				self._fullscreen_off()
+				self.Fullscreen = False
 		
 			
 	def OnMovieListTbSearch(self, event):
@@ -775,7 +910,7 @@ class MainFrame(wx.Frame):
 	def OnMovieListSelected(self, event):
 		count = self.movieList.GetSelectedItemCount()
 		if count == 1:
-			self.VlcPlayer.stop()
+			self.OnPlayerStop(None)
 			self.player.Show(False)
 			self.movieDetailHtml.Show(True)
 			self.movieDetail.Layout()

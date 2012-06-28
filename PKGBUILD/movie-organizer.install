@@ -1,0 +1,11 @@
+post_install() {
+  echo "edit /usr/bin/movie-organizer to point to your library"
+}
+
+post_upgrade() {
+  post_install $1
+}
+
+post_remove() {
+  echo ""
+}

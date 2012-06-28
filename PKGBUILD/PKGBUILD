@@ -1,0 +1,47 @@
+# Dhivehi-fonts
+
+# Maintainer: Ali Aafee
+pkgname=movie-organizer
+pkgver=0.1
+pkgrel=1
+pkgdesc="Movie Organizer"
+arch=('any')
+url="http://portable-movie-organizer.googlecode.com/"
+license=('GPL 3')
+groups=()
+depends=('python2' 'wxpython')
+makedepends=('svn')
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=movie-organizer.install
+changelog=
+source=()
+noextract=()
+md5sums=()
+
+build() {
+  cd "$srcdir"
+  svn checkout http://portable-movie-organizer.googlecode.com/svn/trunk/ portable-movie-organizer-read-only
+  
+  mkdir -p ${pkgdir}/opt/movie-organizer
+  mkdir -p ${pkgdir}/opt/movie-organizer/movie-organizer
+  
+  cp portable-movie-organizer-read-only/movie-organizer/*.py ${pkgdir}/opt/movie-organizer/movie-organizer
+  
+  mkdir -p ${pkgdir}/opt/movie-organizer/res
+  
+  cp portable-movie-organizer-read-only/res/*.png ${pkgdir}/opt/movie-organizer/res
+  cp portable-movie-organizer-read-only/res/*.html ${pkgdir}/opt/movie-organizer/res
+  
+  mkdir -p ${pkgdir}/usr/bin
+  
+  echo -e "#!/bin/bash\npython2 /opt/movie-organizer/movie-organizer -l ~/movies" > ${pkgdir}/usr/bin/movie-organizer
+  echo -e "#!/bin/bash\npython2 /opt/movie-organizer/movie-organizer -l ~/movies -x 127.0.0.1:12345" > ${pkgdir}/usr/bin/movie-organizer-server
+  
+  chmod +x ${pkgdir}/usr/bin/movie-organizer
+}

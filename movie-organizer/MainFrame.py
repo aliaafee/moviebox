@@ -36,6 +36,8 @@ from DbInterface import *
 import MovieDataEditor
 import LibraryScanner
 
+from PrettyDate import prettydate
+
 dirName = os.path.dirname(os.path.abspath(__file__))
 dirName, fileName = os.path.split(dirName)
 resDir = os.path.join(dirName, 'res')
@@ -525,6 +527,12 @@ class MainFrame(wx.Frame):
 		
 		image = os.path.join(self.postersPath,movie[4])
 		
+		try:
+			timestamp = int(timestamp)
+			timeadded = prettydate(timestamp)
+		except ValueError:
+			timeadded = ''
+		
 		html = self.detailHtmlTemplate.format(	
 			title = title, 
 			image = image, 
@@ -537,7 +545,8 @@ class MainFrame(wx.Frame):
 			directors = self._list_to_str(self.db.getDirectorsByMovieId(self.selectedMovie),u'<br>'),
 			tags = self._list_to_str(self.db.getTagsByMovieId(self.selectedMovie),u', '),
 			files = "<ul><li>{0}</li></ul>".format(
-				self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u'</li><li>'))
+				self._list_to_str(self.db.getFilesByMovieId(self.selectedMovie),u'</li><li>')),
+			timestamp = timeadded
 			)
 		
 		self.movieDetailHtml.SetPage(html)

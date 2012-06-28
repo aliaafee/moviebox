@@ -21,6 +21,7 @@
 
 import sqlite3
 import os.path
+import time
 
 
 class DbInterface:
@@ -581,7 +582,7 @@ class DbInterface:
 					summary='', genres=[], actors=[], directors=[], files=[], timestamp=None):
 		
 		if timestamp == None:
-			timestamp = 'timenow'
+			timestamp = str(int(time.time()))
 	
 		movieid = self._add_movie_base(title, sort, timestamp, image, released, 
 			runtime, rated, summary)

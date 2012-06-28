@@ -38,7 +38,6 @@ class MovieDataEditor(wx.Dialog):
 		
 		self._init_ctrls(parent)
 		
-		
 	
 	def _init_ctrls(self, parent):
 		wx.Dialog.__init__(self, name='MovieEditor', parent=parent,

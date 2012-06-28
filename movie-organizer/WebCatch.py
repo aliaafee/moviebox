@@ -59,6 +59,8 @@ def get(url, catchPath=fallBackCatchPath):
 			
 			conn.close()
 			
+			print "using catch data"
+			
 			return data
 		except IOError:
 			pass

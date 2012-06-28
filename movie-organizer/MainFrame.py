@@ -532,6 +532,9 @@ class MainFrame(wx.Frame):
 			timeadded = prettydate(timestamp)
 		except ValueError:
 			timeadded = ''
+			
+		if timeadded != '':
+			timeadded = "Added {0} to library".format(timeadded)
 		
 		html = self.detailHtmlTemplate.format(	
 			title = title, 

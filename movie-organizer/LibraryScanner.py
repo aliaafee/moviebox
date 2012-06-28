@@ -504,7 +504,7 @@ class LibraryScanner(wx.Dialog):
 		selectedFiles = self._get_selection(fileList)
 		
 		if len(selectedFiles) > 0:
-			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, 'Add Movie to Library')
+			dlg = MovieDataEditor.MovieDataEditor(self, self.postersPath, self.catchPath, 'Add Movie to Library')
 			data = {}
 			
 			title, year = self._get_title_and_year_from_filename(selectedFiles[0][1])
